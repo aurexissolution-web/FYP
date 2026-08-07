@@ -342,12 +342,56 @@ class _GreetingHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final user = Supabase.instance.client.auth.currentUser;
+    final firstName = (user?.email ?? 'there').split('@').first;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Row(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: const BoxDecoration(
+                color: Color(0xFFDCD6EB),
+                borderRadius: BorderRadius.all(Radius.circular(16)),
+              ),
+              alignment: Alignment.center,
+              child: const Text(
+                'LOGO',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF6B5B8A),
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Welcome back,',
+                    style: textTheme.bodyMedium?.copyWith(
+                          color: const Color(0xFF6E787C),
+                        ),
+                  ),
+                  Text(
+                    firstName,
+                    style: textTheme.headlineSmall,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
         Text(
           'How are you feeling right now?',
-          style: textTheme.headlineSmall,
+          style: textTheme.titleLarge,
         ),
         const SizedBox(height: 8),
         Text(
