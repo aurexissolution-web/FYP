@@ -1,0 +1,56 @@
+{
+  "cv_mean_accuracy": 0.6145833333333334,
+  "cv_std_accuracy": 0.05300117195303384,
+  "cv_mean_macro_f1": 0.5688224648850829,
+  "cv_std_macro_f1": 0.07650241208732234,
+  "cv_fold_accuracies": [
+    0.5347222222222222,
+    0.7013888888888888,
+    0.6111111111111112,
+    0.6111111111111112,
+    0.6527777777777778,
+    0.5763888888888888
+  ],
+  "cv_fold_macro_f1s": [
+    0.4555783878568689,
+    0.6894260383066353,
+    0.6034672796963646,
+    0.5556216931216931,
+    0.6089959913909786,
+    0.4998453989379579
+  ],
+  "cv_aggregated_confusion_matrix": [
+    [
+      96,
+      40,
+      24,
+      32
+    ],
+    [
+      20,
+      65,
+      9,
+      98
+    ],
+    [
+      58,
+      13,
+      114,
+      7
+    ],
+    [
+      8,
+      24,
+      0,
+      256
+    ]
+  ],
+  "final_model_val_accuracy": 0.5625,
+  "labels": [
+    "happy",
+    "sad",
+    "angry",
+    "neutral"
+  ],
+  "note": "cv_* metrics are the honest generalization estimate (6-fold, actor-disjoint). final_model_val_accuracy is the deployed model's validation accuracy, not a held-out test score."
+}
