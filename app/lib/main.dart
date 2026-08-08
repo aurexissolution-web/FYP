@@ -166,7 +166,11 @@ class _CheckInPageState extends State<CheckInPage> {
           : (_audioBase64 != null ? 'voice' : 'text');
 
       try {
-        await _moodLogService.logResult(result, source: source);
+        await _moodLogService.logResult(
+          result,
+          source: source,
+          language: _language,
+        );
       } catch (e) {
         // Supabase may be unavailable — don't let persistence break the UX.
         setState(
@@ -217,6 +221,13 @@ class _CheckInPageState extends State<CheckInPage> {
             child: _LanguageToggle(
               value: _language,
               onChanged: (v) => setState(() => _language = v),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.history_outlined),
+            tooltip: 'Mood history',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const HistoryPage()),
             ),
           ),
           IconButton(
@@ -1074,6 +1085,192 @@ class _HotlineTile extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class HistoryPage extends StatefulWidget {
+  const HistoryPage({super.key});
+
+  @override
+  State<HistoryPage> createState() => _HistoryPageState();
+}
+
+class _HistoryPageState extends State<HistoryPage> {
+  final _service = MoodLogService();
+  List<Map<String, dynamic>> _logs = [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final logs = await _service.fetchMoodLogs();
+      setState(() {
+        _logs = logs;
+        _loading = false;
+        _error = null;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _togglePlan(Map<String, dynamic> plan) async {
+    final completed = plan['completed_at'] != null;
+    final newCompleted = !completed;
+    try {
+      await _service.toggleSelfCare(plan['id'] as String, newCompleted);
+      setState(() {
+        plan['completed_at'] =
+            newCompleted ? DateTime.now().toIso8601String() : null;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not update plan: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Mood History')),
+      body: SafeArea(
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null
+                ? _ErrorBanner(message: _error!)
+                : _logs.isEmpty
+                    ? const _EmptyHistoryView()
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(20),
+                        itemCount: _logs.length,
+                        itemBuilder: (context, index) => _HistoryLogCard(
+                          log: _logs[index],
+                          onToggle: (plan) => unawaited(_togglePlan(plan)),
+                        ),
+                      ),
+      ),
+    );
+  }
+}
+
+class _EmptyHistoryView extends StatelessWidget {
+  const _EmptyHistoryView();
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.history, size: 56, color: Color(0xFF9BA5A8)),
+            const SizedBox(height: 16),
+            Text(
+              'No check-ins yet',
+              style: textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Your past moods and self-care plans will appear here.',
+              textAlign: TextAlign.center,
+              style: textTheme.bodyMedium?.copyWith(color: const Color(0xFF6E787C)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HistoryLogCard extends StatelessWidget {
+  final Map<String, dynamic> log;
+  final void Function(Map<String, dynamic> plan) onToggle;
+
+  const _HistoryLogCard({required this.log, required this.onToggle});
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+    final createdAt = DateTime.parse(log['created_at'] as String);
+    final date = '${createdAt.day}/${createdAt.month}/${createdAt.year}';
+    final time =
+        '${createdAt.hour.toString().padLeft(2, '0')}:${createdAt.minute.toString().padLeft(2, '0')}';
+    final mood = _MoodVisual.forLabel(log['fusion_result'] as String);
+    final plans = (log['self_care_plans'] as List<dynamic>? ?? [])
+        .cast<Map<String, dynamic>>();
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 22,
+                  backgroundColor: mood.color.withValues(alpha: 0.15),
+                  child: Icon(mood.icon, color: mood.color, size: 24),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        mood.label,
+                        style: textTheme.titleLarge?.copyWith(color: mood.color),
+                      ),
+                      Text(
+                        '$date at $time · ${((log['confidence'] as num).toDouble() * 100).toStringAsFixed(0)}% · ${log['source']}',
+                        style: textTheme.bodySmall
+                            ?.copyWith(color: const Color(0xFF6E787C)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Self-care plan',
+              style: textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            ...plans.map(
+              (plan) => CheckboxListTile(
+                value: plan['completed_at'] != null,
+                onChanged: (_) => onToggle(plan),
+                title: Text(
+                  '${plan['day_index']}. ${plan['activity']}',
+                  style: textTheme.bodyMedium,
+                ),
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                activeColor: colorScheme.primary,
+                checkColor: colorScheme.onPrimary,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
