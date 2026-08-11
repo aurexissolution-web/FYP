@@ -12,8 +12,13 @@ ml-service/.venv/
 ml-service/datasets/
 
 # Large ML model weights
-ml-service/models/*.pt
+# The .pt files below are only ~11MB total, so keep them in the repo so the
+# Render Dockerfile can copy them without an external download step.
+# ml-service/models/*.pt
 ml-service/models/*.pth
+
+# Supabase CLI local state
+supabase/.temp/
 
 # Flutter / Dart build artifacts
 .dart_tool/

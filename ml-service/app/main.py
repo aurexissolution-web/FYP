@@ -59,6 +59,60 @@ def _late_fusion(
     return winner
 
 
+# Lightweight keyword override for obvious demo cases where the small BiGRU
+# text model is likely to misclassify (e.g., "I got a promotion today!").
+# This is a short-term demo safeguard, not a replacement for retraining.
+_HAPPY_LEXICON = {
+    "en": ["happy", "joy", "excited", "great", "amazing", "wonderful", "promotion", "won", "win", "celebrating", "good news", "glad", "delighted", "love it", "best day", "lucky", "blessed"],
+    "ms": ["gembira", "seronok", "hebat", "menang", "syukur", "suka", "girang", "bahagia", "meriah", "senang", "lawak", "terbaik"],
+}
+_SAD_LEXICON = {
+    "en": ["sad", "lonely", "depressed", "upset", "crying", "heartbroken", "grief", "miss", "lost", "terrible", "awful", "not good", "worst", "disappointed"],
+    "ms": ["sedih", "kesunyian", "kecewa", "pilu", "sayu", "menangis", "dukacita", "susah", "murung", "teruk", "sedihnya"],
+}
+_ANGRY_LEXICON = {
+    "en": ["angry", "furious", "mad", "annoyed", "frustrated", "hate", "pissed", "irritated", "livid", "rage"],
+    "ms": ["marah", "bengang", "naik angin", "geram", "kesal", "dengki", "menyampah", "meluat"],
+}
+_LEXICONS = {
+    "happy": _HAPPY_LEXICON,
+    "sad": _SAD_LEXICON,
+    "angry": _ANGRY_LEXICON,
+}
+
+
+def _apply_lexicon(
+    text: str | None, language: str, result: ModalityResult
+) -> ModalityResult:
+    """Boost the model's decision when strong emotion keywords are present."""
+    if not text or result.confidence >= 0.85:
+        return result
+
+    lowered = text.lower()
+    counts: dict[str, int] = {}
+    for label, by_lang in _LEXICONS.items():
+        words = by_lang.get(language, []) + by_lang.get("en", [])
+        counts[label] = sum(1 for w in words if w in lowered)
+
+    total = sum(counts.values())
+    if total == 0:
+        return resultapply_lexicon(
+        payload.text, payload.nguage, _la)
+    
+
+    dominant = max(counts, key=counts.get)
+    if counts[dominant] == 0 or result.label == dominant:
+        return result
+
+    # Override with a high-confidence distribution.
+    per_other = round((1.0 - 0.85) / 3, 3)
+    new_probs = {label: per_other for label in _LABELS if label != dominant}
+    new_probs[dominant] = round(1.0 - sum(new_probs.values()), 3)
+    return ModalityResult(
+        label=dominant, confidence=new_probs[dominant], probs=new_probs
+    )
+
+
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok"}
@@ -96,7 +150,9 @@ def analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
 
     text_result = _text_predictor.predict(payload.text) if payload.text else None
     audio_result = _audio_predictor.predict(payload.audio_base64) if payload.audio_base64 else None
-    fusion_result = _late_fusion(text_result, audio_result)
+    fusion_result = _apply_lexicon(
+        payload.text, payload.language, _late_fusion(text_result, audio_result)
+    )
     plan = generate_plan(fusion_result.label, payload.language)
     response_message = get_response_message(fusion_result.label, payload.language)
 

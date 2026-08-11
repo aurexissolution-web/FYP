@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: emobuddy-ml
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+    healthCheckPath: /health

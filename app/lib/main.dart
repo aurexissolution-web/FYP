@@ -1119,7 +1119,8 @@ class _HistoryPageState extends State<HistoryPage> {
       });
     } catch (e) {
       setState(() {
-        _error = e.toString();
+        _error =
+            "Couldn't load your mood history. Check your connection and try again.";
         _loading = false;
       });
     }
@@ -1151,7 +1152,36 @@ class _HistoryPageState extends State<HistoryPage> {
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : _error != null
-                ? _ErrorBanner(message: _error!)
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.error_outline,
+                            size: 48,
+                            color: Color(0xFF9BA5A8),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            _error!,
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyLarge
+                                ?.copyWith(color: const Color(0xFF6E787C)),
+                          ),
+                          const SizedBox(height: 16),
+                          FilledButton.icon(
+                            onPressed: _load,
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Try again'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
                 : _logs.isEmpty
                     ? const _EmptyHistoryView()
                     : ListView.builder(
