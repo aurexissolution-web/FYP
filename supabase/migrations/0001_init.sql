@@ -32,26 +32,34 @@ create index if not exists self_care_plans_user_idx
 alter table public.mood_logs enable row level security;
 alter table public.self_care_plans enable row level security;
 
+drop policy if exists "mood_logs_select_own" on public.mood_logs;
 create policy "mood_logs_select_own" on public.mood_logs
   for select using (auth.uid() = user_id);
 
+drop policy if exists "mood_logs_insert_own" on public.mood_logs;
 create policy "mood_logs_insert_own" on public.mood_logs
   for insert with check (auth.uid() = user_id);
 
+drop policy if exists "mood_logs_update_own" on public.mood_logs;
 create policy "mood_logs_update_own" on public.mood_logs
   for update using (auth.uid() = user_id);
 
+drop policy if exists "mood_logs_delete_own" on public.mood_logs;
 create policy "mood_logs_delete_own" on public.mood_logs
   for delete using (auth.uid() = user_id);
 
+drop policy if exists "self_care_plans_select_own" on public.self_care_plans;
 create policy "self_care_plans_select_own" on public.self_care_plans
   for select using (auth.uid() = user_id);
 
+drop policy if exists "self_care_plans_insert_own" on public.self_care_plans;
 create policy "self_care_plans_insert_own" on public.self_care_plans
   for insert with check (auth.uid() = user_id);
 
+drop policy if exists "self_care_plans_update_own" on public.self_care_plans;
 create policy "self_care_plans_update_own" on public.self_care_plans
   for update using (auth.uid() = user_id);
 
+drop policy if exists "self_care_plans_delete_own" on public.self_care_plans;
 create policy "self_care_plans_delete_own" on public.self_care_plans
   for delete using (auth.uid() = user_id);
