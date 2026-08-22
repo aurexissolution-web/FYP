@@ -135,7 +135,8 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  bool get _isWelcomeView => _conversationTurns == 0 && _messages.length <= 1;
+  bool get _isWelcomeView =>
+      _sessionId == null && _conversationTurns == 0 && _messages.length <= 1;
   bool get _shouldShowPlanPrompt => !_hasResult && _conversationTurns >= 2;
 
   void _onScroll() {
@@ -931,18 +932,20 @@ class _ChatScreenState extends State<ChatScreen> {
                 Expanded(
                   child: _isWelcomeView
                       ? _buildWelcomeView()
-                      : ListView.builder(
-                          controller: _scroll,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 16,
-                          ),
-                          itemCount: _messages.length,
-                          itemBuilder: (context, index) => _AnimatedBubble(
-                            key: ValueKey(index),
-                            child: _buildMessageItem(index),
-                          ),
-                        ),
+                      : _messages.isEmpty
+                          ? _buildEmptySessionView()
+                          : ListView.builder(
+                              controller: _scroll,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 16,
+                              ),
+                              itemCount: _messages.length,
+                              itemBuilder: (context, index) => _AnimatedBubble(
+                                key: ValueKey(index),
+                                child: _buildMessageItem(index),
+                              ),
+                            ),
                 ),
                 // The mood shortcut chips are only shown on the welcome
                 // screen (inside _buildWelcomeView) -- once a conversation
@@ -1096,6 +1099,47 @@ class _ChatScreenState extends State<ChatScreen> {
           const SizedBox(height: 32),
           _buildQuickReplyChips(),
         ],
+      ),
+    );
+  }
+
+  Widget _buildEmptySessionView() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.chat_bubble_outline_rounded,
+              size: 56,
+              color: colorScheme.onSurface.withOpacity(0.25),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _language == 'ms'
+                  ? 'Tiada sejarah sembang untuk sesi ini.'
+                  : 'No chat history for this session.',
+              textAlign: TextAlign.center,
+              style: textTheme.bodyLarge?.copyWith(
+                    color: colorScheme.onSurface.withOpacity(0.6),
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _language == 'ms'
+                  ? 'Sesi lama sebelum ciri ini disimpan. Mulakan sembang baharu untuk menyimpan perbualan penuh.'
+                  : 'This session is from before chat history was saved. Start a new chat to keep the full conversation.',
+              textAlign: TextAlign.center,
+              style: textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurface.withOpacity(0.45),
+                  ),
+            ),
+          ],
+        ),
       ),
     );
   }
