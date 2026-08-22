@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../services/session_service.dart';
+import '../utils/mood_visuals.dart';
+import '../widgets/emoji_avatar.dart';
+import '../widgets/emotion_chip.dart';
 
 class PlanPage extends StatefulWidget {
-  const PlanPage({super.key});
+  final VoidCallback? onStartChat;
+
+  const PlanPage({super.key, this.onStartChat});
 
   @override
   State<PlanPage> createState() => _PlanPageState();
@@ -31,7 +36,8 @@ class _PlanPageState extends State<PlanPage> {
       });
     } catch (e) {
       setState(() {
-        _error = "Couldn't load your plan. Check your connection and try again.";
+        _error =
+            "Couldn't load your plan. Check your connection and try again.";
         _loading = false;
       });
     }
@@ -53,6 +59,17 @@ class _PlanPageState extends State<PlanPage> {
         );
       }
     }
+  }
+
+  List<Map<String, dynamic>> _sortedPlans(Map<String, dynamic> log) {
+    final plans = (log['self_care_plans'] as List<dynamic>? ?? [])
+        .cast<Map<String, dynamic>>();
+    return plans.toList()
+      ..sort((a, b) {
+        final ai = (a['day_index'] as int?) ?? 0;
+        final bi = (b['day_index'] as int?) ?? 0;
+        return ai.compareTo(bi);
+      });
   }
 
   @override
@@ -80,40 +97,44 @@ class _PlanPageState extends State<PlanPage> {
               ? const Center(child: CircularProgressIndicator())
               : _error != null
                   ? _buildError()
-                  : _logs.isEmpty
-                      ? const _EmptyPlanView()
-                      : _buildPlan(),
+                  : _buildBody(),
         ),
       ),
     );
   }
 
-  Widget _buildPlan() {
-    final latest = _logs.first;
-    final older = _logs.skip(1).toList();
-    final plans = (latest['self_care_plans'] as List<dynamic>? ?? [])
-        .cast<Map<String, dynamic>>();
-    final completed = plans.where((p) => p['completed_at'] != null).length;
-    final total = plans.length;
+  Widget _buildBody() {
+    final logsWithPlans = _logs.where((log) {
+      final plans = (log['self_care_plans'] as List<dynamic>? ?? [])
+          .cast<Map<String, dynamic>>();
+      return plans.isNotEmpty;
+    }).toList();
+
+    if (logsWithPlans.isEmpty) {
+      return _EmptyPlanView(onStartChat: widget.onStartChat);
+    }
+
+    final active = logsWithPlans.first;
+    final previous = logsWithPlans.skip(1).toList();
+    final plans = _sortedPlans(active);
 
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          _ProgressHeader(
-            completed: completed,
-            total: total,
+          _TodayTaskCard(
+            log: active,
             plans: plans,
             onToggle: _togglePlan,
           ),
           const SizedBox(height: 20),
-          _LatestPlanCard(
-            log: latest,
+          _ThreeDayPlanCard(
+            log: active,
             plans: plans,
             onToggle: _togglePlan,
           ),
-          if (older.isNotEmpty) ...[
+          if (previous.isNotEmpty) ...[
             const SizedBox(height: 28),
             Text(
               'Previous plans',
@@ -122,10 +143,12 @@ class _PlanPageState extends State<PlanPage> {
                   ),
             ),
             const SizedBox(height: 12),
-            ...older.map((log) => _PastPlanCard(
-                  log: log,
-                  onToggle: _togglePlan,
-                )),
+            ...previous.map(
+              (log) => _PastPlanCard(
+                log: log,
+                onToggle: _togglePlan,
+              ),
+            ),
           ],
         ],
       ),
@@ -164,15 +187,21 @@ class _PlanPageState extends State<PlanPage> {
   }
 }
 
-class _ProgressHeader extends StatelessWidget {
-  final int completed;
-  final int total;
+DateTime _dateOnly(DateTime dt) => DateTime(dt.year, dt.month, dt.day);
+
+String _formatDate(DateTime dt) =>
+    '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+
+String _formatTime(DateTime dt) =>
+    '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+
+class _TodayTaskCard extends StatelessWidget {
+  final Map<String, dynamic> log;
   final List<Map<String, dynamic>> plans;
   final void Function(Map<String, dynamic>) onToggle;
 
-  const _ProgressHeader({
-    required this.completed,
-    required this.total,
+  const _TodayTaskCard({
+    required this.log,
     required this.plans,
     required this.onToggle,
   });
@@ -181,17 +210,45 @@ class _ProgressHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final value = total == 0 ? 0.0 : completed / total;
+
+    final planDate =
+        _dateOnly(DateTime.parse(log['created_at'] as String).toLocal());
+    final today = _dateOnly(DateTime.now());
     final allDone = plans.every((p) => p['completed_at'] != null);
 
-    String message;
-    if (value == 0) {
-      message = 'A small step today can mean a lot.';
-    } else if (value < 1) {
-      message = 'Keep going — you are doing great.';
+    final Map<String, dynamic> targetPlan;
+    final String label;
+    if (allDone) {
+      targetPlan = plans.first;
+      label = 'Plan complete';
     } else {
-      message = 'All done! Be proud of yourself.';
+      final todayPlan = plans.firstWhere(
+        (p) {
+          final dayIndex = (p['day_index'] as int?) ?? 1;
+          return planDate.add(Duration(days: dayIndex - 1)) == today;
+        },
+        orElse: () => <String, dynamic>{},
+      );
+      if (todayPlan.isNotEmpty) {
+        targetPlan = todayPlan;
+        label = "Today's self-care";
+      } else {
+        final incomplete =
+            plans.where((p) => p['completed_at'] == null).toList();
+        targetPlan = incomplete.first;
+        final dayIndex = (targetPlan['day_index'] as int?) ?? 1;
+        final dueDate = planDate.add(Duration(days: dayIndex - 1));
+        final daysDiff = dueDate.difference(today).inDays;
+        if (daysDiff < 0) {
+          label = 'Day $dayIndex · overdue';
+        } else {
+          label =
+              'Day $dayIndex · due in $daysDiff ${daysDiff == 1 ? 'day' : 'days'}';
+        }
+      }
     }
+
+    final completed = targetPlan['completed_at'] != null;
 
     return Container(
       padding: const EdgeInsets.all(22),
@@ -212,107 +269,88 @@ class _ProgressHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          SizedBox(
-            width: 78,
-            height: 78,
-            child: TweenAnimationBuilder<double>(
-              tween: Tween<double>(begin: 0, end: value),
-              duration: const Duration(milliseconds: 800),
-              curve: Curves.easeOutCubic,
-              builder: (context, v, child) {
-                return Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    CircularProgressIndicator(
-                      value: v,
-                      strokeWidth: 8,
-                      backgroundColor: Colors.white.withOpacity(0.25),
-                      valueColor: const AlwaysStoppedAnimation<Color>(
-                        Colors.white,
-                      ),
-                    ),
-                    Text(
-                      '${(v * 100).round()}%',
-                      style: textTheme.titleSmall?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                          ),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-          const SizedBox(width: 20),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '$completed of $total completed',
+                  label,
+                  style: textTheme.labelLarge?.copyWith(
+                        color: Colors.white.withOpacity(0.9),
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  '${targetPlan['activity']}',
                   style: textTheme.titleMedium?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.w800,
+                        height: 1.25,
                       ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  message,
-                  style: textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withOpacity(0.9),
-                      ),
-                ),
-                if (!allDone && plans.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 10),
-                    child: GestureDetector(
-                      onTap: () {
-                        final incomplete = plans
-                            .where((p) => p['completed_at'] == null)
-                            .toList();
-                        for (final p in incomplete) {
-                          onToggle(p);
-                        }
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.done_all, color: Colors.white, size: 16),
-                            SizedBox(width: 6),
-                            Text(
-                              'Mark all done',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                const SizedBox(height: 14),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
                   ),
+                  child: Text(
+                    _progressText(plans),
+                    style: textTheme.labelMedium?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                ),
               ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          GestureDetector(
+            onTap: () => onToggle(targetPlan),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: completed
+                    ? Colors.white
+                    : Colors.white.withOpacity(0.2),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.4),
+                  width: 2,
+                ),
+              ),
+              child: Center(
+                child: completed
+                    ? Icon(Icons.check,
+                        color: colorScheme.primary, size: 28)
+                    : const Icon(Icons.radio_button_unchecked,
+                        color: Colors.white, size: 28),
+              ),
             ),
           ),
         ],
       ),
     );
   }
+
+  String _progressText(List<Map<String, dynamic>> plans) {
+    final done = plans.where((p) => p['completed_at'] != null).length;
+    return '$done of ${plans.length} done';
+  }
 }
 
-class _LatestPlanCard extends StatelessWidget {
+class _ThreeDayPlanCard extends StatelessWidget {
   final Map<String, dynamic> log;
   final List<Map<String, dynamic>> plans;
   final void Function(Map<String, dynamic>) onToggle;
 
-  const _LatestPlanCard({
+  const _ThreeDayPlanCard({
     required this.log,
     required this.plans,
     required this.onToggle,
@@ -323,8 +361,7 @@ class _LatestPlanCard extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final createdAt = DateTime.parse(log['created_at'] as String);
-    final date =
-        '${createdAt.day.toString().padLeft(2, '0')}/${createdAt.month.toString().padLeft(2, '0')}/${createdAt.year}';
+    final date = _formatDate(createdAt);
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -354,12 +391,13 @@ class _LatestPlanCard extends StatelessWidget {
                   color: colorScheme.onSurface.withOpacity(0.6),
                 ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           ...plans.asMap().entries.map((e) {
             final index = e.key;
             final plan = e.value;
             return _PlanDayTile(
               plan: plan,
+              logDate: createdAt,
               isLast: index == plans.length - 1,
               onToggle: () => onToggle(plan),
             );
@@ -372,11 +410,13 @@ class _LatestPlanCard extends StatelessWidget {
 
 class _PlanDayTile extends StatelessWidget {
   final Map<String, dynamic> plan;
+  final DateTime logDate;
   final bool isLast;
   final VoidCallback onToggle;
 
   const _PlanDayTile({
     required this.plan,
+    required this.logDate,
     required this.isLast,
     required this.onToggle,
   });
@@ -386,22 +426,44 @@ class _PlanDayTile extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final completed = plan['completed_at'] != null;
+    final dayIndex = (plan['day_index'] as int?) ?? 1;
+    final planDate = _dateOnly(logDate.toLocal());
+    final today = _dateOnly(DateTime.now());
+    final dueDate = planDate.add(Duration(days: dayIndex - 1));
+    final isToday = dueDate == today;
+
+    String status;
+    if (completed) {
+      status = 'Completed';
+    } else if (isToday) {
+      status = 'Today';
+    } else if (dueDate.isBefore(today)) {
+      status = 'Overdue';
+    } else {
+      final days = dueDate.difference(today).inDays;
+      status = 'In $days ${days == 1 ? 'day' : 'days'}';
+    }
 
     return GestureDetector(
       onTap: onToggle,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
-        margin: EdgeInsets.only(bottom: isLast ? 0 : 12),
-        padding: const EdgeInsets.all(16),
+        margin: EdgeInsets.only(bottom: isLast ? 0 : 10),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: completed
               ? colorScheme.primaryContainer.withOpacity(0.5)
-              : colorScheme.surface,
+              : isToday
+                  ? colorScheme.primaryContainer.withOpacity(0.2)
+                  : colorScheme.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: completed
                 ? colorScheme.primary.withOpacity(0.25)
-                : colorScheme.outline.withOpacity(0.2),
+                : isToday
+                    ? colorScheme.primary.withOpacity(0.35)
+                    : colorScheme.outline.withOpacity(0.2),
+            width: isToday ? 1.5 : 1,
           ),
           boxShadow: completed
               ? null
@@ -430,10 +492,10 @@ class _PlanDayTile extends StatelessWidget {
                     ? Icon(Icons.check,
                         color: colorScheme.onPrimary, size: 18)
                     : Text(
-                        '${plan['day_index']}',
+                        '$dayIndex',
                         style: textTheme.labelLarge?.copyWith(
-                              color: colorScheme.onSurface
-                                  .withOpacity(0.8),
+                              color:
+                                  colorScheme.onSurface.withOpacity(0.8),
                               fontWeight: FontWeight.w800,
                             ),
                       ),
@@ -441,15 +503,32 @@ class _PlanDayTile extends StatelessWidget {
             ),
             const SizedBox(width: 14),
             Expanded(
-              child: Text(
-                '${plan['activity']}',
-                style: textTheme.bodyMedium?.copyWith(
-                      decoration:
-                          completed ? TextDecoration.lineThrough : null,
-                      color: completed
-                          ? colorScheme.onSurface.withOpacity(0.55)
-                          : colorScheme.onSurface,
-                    ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${plan['activity']}',
+                    style: textTheme.bodyMedium?.copyWith(
+                          decoration:
+                              completed ? TextDecoration.lineThrough : null,
+                          color: completed
+                              ? colorScheme.onSurface.withOpacity(0.55)
+                              : colorScheme.onSurface,
+                          fontWeight:
+                              isToday ? FontWeight.w700 : FontWeight.normal,
+                        ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    status,
+                    style: textTheme.labelSmall?.copyWith(
+                          color: completed
+                              ? colorScheme.primary
+                              : colorScheme.onSurface.withOpacity(0.5),
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -472,26 +551,52 @@ class _PastPlanCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final createdAt = DateTime.parse(log['created_at'] as String);
-    final date =
-        '${createdAt.day.toString().padLeft(2, '0')}/${createdAt.month.toString().padLeft(2, '0')}/${createdAt.year}';
-    final fusion = log['fusion_result'] as String? ?? 'mood';
+    final createdAt = DateTime.parse(log['created_at'] as String).toLocal();
+    final date = _formatDate(createdAt);
+    final time = _formatTime(createdAt);
+    final fusion = log['fusion_result'] as String? ?? 'neutral';
+    final mood = MoodVisual.forLabel(fusion);
     final plans = (log['self_care_plans'] as List<dynamic>? ?? [])
-        .cast<Map<String, dynamic>>();
+        .cast<Map<String, dynamic>>()
+      ..sort((a, b) {
+        final ai = (a['day_index'] as int?) ?? 0;
+        final bi = (b['day_index'] as int?) ?? 0;
+        return ai.compareTo(bi);
+      });
     final completed = plans.where((p) => p['completed_at'] != null).length;
+    final title = (log['title'] as String?) ?? 'Check-in';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ExpansionTile(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24)),
         collapsedShape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: Text('Plan from $date', style: textTheme.titleMedium),
-        subtitle: Text(
-          '$completed of ${plans.length} completed · $fusion',
-          style: textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurface.withOpacity(0.6),
-              ),
+        leading: EmojiAvatar(
+          emoji: moodEmoji(mood.label),
+          size: 42,
+          gradient: [mood.lightColor, mood.lightColor],
+        ),
+        title: Text(
+          '$title · $date',
+          style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        subtitle: Row(
+          children: [
+            EmotionChip(
+              label: mood.label,
+              icon: mood.icon,
+              color: mood.color,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '$completed of ${plans.length} done · $time',
+              style: textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurface.withOpacity(0.6),
+                  ),
+            ),
+          ],
         ),
         children: plans
             .map(
@@ -516,7 +621,9 @@ class _PastPlanCard extends StatelessWidget {
 }
 
 class _EmptyPlanView extends StatelessWidget {
-  const _EmptyPlanView();
+  final VoidCallback? onStartChat;
+
+  const _EmptyPlanView({this.onStartChat});
 
   @override
   Widget build(BuildContext context) {
@@ -563,6 +670,12 @@ class _EmptyPlanView extends StatelessWidget {
               style: textTheme.bodyMedium?.copyWith(
                     color: colorScheme.onSurface.withOpacity(0.6),
                   ),
+            ),
+            const SizedBox(height: 20),
+            FilledButton.icon(
+              onPressed: onStartChat,
+              icon: const Icon(Icons.chat_bubble_outline),
+              label: const Text('Start a check-in'),
             ),
           ],
         ),

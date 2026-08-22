@@ -43,7 +43,9 @@ class _MainShellState extends State<MainShell> {
         setState(() => _index = 0);
       },
     ),
-    const PlanPage(),
+    PlanPage(
+      onStartChat: () => setState(() => _index = 0),
+    ),
     const ProfilePage(),
   ];
 
