@@ -5,7 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/analyze_result.dart';
 import '../services/analyze_api.dart';
-import '../services/mood_log_service.dart';
+import '../services/session_service.dart';
 
 class ChatPage extends StatefulWidget {
   const ChatPage({super.key});
@@ -47,7 +47,7 @@ class _ChatPageState extends State<ChatPage> {
   final _controller = TextEditingController();
   final _scroll = ScrollController();
   final _api = AnalyzeApi();
-  final _moodLogService = MoodLogService();
+  final _sessionService = SessionService();
 
   final List<_ChatMessage> _messages = [];
   String _language = 'en';
@@ -96,7 +96,7 @@ class _ChatPageState extends State<ChatPage> {
       _scrollToBottom();
 
       try {
-        await _moodLogService.logResult(
+        await _sessionService.logResult(
           result,
           source: 'text',
           language: _language,

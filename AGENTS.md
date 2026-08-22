@@ -29,6 +29,21 @@ actually reach:
 - **Deployed backend:** once ml-service is deployed (see `HANDOFF.md`), just
   point `ML_SERVICE_URL` at the deployed URL.
 
+## Chat history / session persistence
+
+The app now stores a full message thread for every check-in session. The
+migration lives in `supabase/migrations/0003_chat_messages.sql`. Before
+testing on a device, apply it to the active Supabase project:
+
+- Local Supabase: `supabase db reset` (applies all migrations) or run the
+  migration SQL in the local studio.
+- Hosted Supabase: use `supabase db push` if the CLI is linked, or open
+  the SQL editor and paste the contents of `0003_chat_messages.sql`.
+
+After applying, the History tab lists past chat sessions and tapping a
+session loads it back into the Chat tab. The Plan tab remains the home
+for the current and previous 3-day self-care plans.
+
 ## ml-service
 
 - Run locally: `uvicorn app.main:app --port 8123` (from `ml-service/`, with

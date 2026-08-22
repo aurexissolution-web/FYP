@@ -2,19 +2,21 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../services/mood_log_service.dart';
+import '../services/session_service.dart';
 import '../widgets/emoji_avatar.dart';
 import '../widgets/emotion_chip.dart';
 
 class HistoryPage extends StatefulWidget {
-  const HistoryPage({super.key});
+  final ValueChanged<String>? onSessionSelected;
+
+  const HistoryPage({super.key, this.onSessionSelected});
 
   @override
   State<HistoryPage> createState() => _HistoryPageState();
 }
 
 class _HistoryPageState extends State<HistoryPage> {
-  final _service = MoodLogService();
+  final _service = SessionService();
   List<Map<String, dynamic>> _logs = [];
   bool _loading = true;
   String? _error;
@@ -27,7 +29,7 @@ class _HistoryPageState extends State<HistoryPage> {
 
   Future<void> _load() async {
     try {
-      final logs = await _service.fetchMoodLogs();
+      final logs = await _service.getSessions();
       setState(() {
         _logs = logs;
         _loading = false;
@@ -36,56 +38,86 @@ class _HistoryPageState extends State<HistoryPage> {
     } catch (e) {
       setState(() {
         _error =
-            "Couldn't load your mood history. Check your connection and try again.";
+            "Couldn't load your conversations. Check your connection and try again.";
         _loading = false;
       });
     }
   }
 
-  Future<void> _togglePlan(Map<String, dynamic> plan) async {
-    final completed = plan['completed_at'] != null;
-    final newCompleted = !completed;
-    try {
-      await _service.toggleSelfCare(plan['id'] as String, newCompleted);
-      setState(() {
-        plan['completed_at'] =
-            newCompleted ? DateTime.now().toIso8601String() : null;
-      });
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not update plan: $e')),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isLight = Theme.of(context).brightness == Brightness.light;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Mood History')),
-      body: SafeArea(
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _error != null
-                ? _buildError()
-                : _logs.isEmpty
-                    ? const _EmptyHistoryView()
-                    : _buildList(),
+      appBar: AppBar(
+        title: const Text('Conversations'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Refresh',
+            onPressed: _load,
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              colorScheme.surface,
+              colorScheme.surface,
+              isLight ? Colors.white : const Color(0xFF14131C),
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            stops: const [0.0, 0.6, 1.0],
+          ),
+        ),
+        child: SafeArea(
+          child: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : _error != null
+                  ? _buildError()
+                  : _logs.isEmpty
+                      ? const _EmptyHistoryView()
+                      : _buildList(),
+        ),
       ),
     );
   }
 
   Widget _buildList() {
+    final grouped = _groupSessions(_logs);
+
     return RefreshIndicator(
       onRefresh: _load,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(20),
-        itemCount: _logs.length,
-        itemBuilder: (context, index) => _HistoryLogCard(
-          log: _logs[index],
-          onToggle: (plan) => unawaited(_togglePlan(plan)),
-        ),
+      displacement: 20,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+        children: [
+          for (final entry in grouped) ...[
+            Padding(
+              padding: const EdgeInsets.only(top: 20, bottom: 8),
+              child: Text(
+                entry.label,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withOpacity(0.5),
+                    ),
+              ),
+            ),
+            ...entry.logs.map(
+              (log) => _HistorySessionCard(
+                log: log,
+                onTap: () => widget.onSessionSelected?.call(log['id'] as String),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -122,6 +154,41 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 }
 
+class _GroupedSessions {
+  final String label;
+  final List<Map<String, dynamic>> logs;
+
+  _GroupedSessions({required this.label, required this.logs});
+}
+
+List<_GroupedSessions> _groupSessions(List<Map<String, dynamic>> logs) {
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final yesterday = today.subtract(const Duration(days: 1));
+  final weekAgo = today.subtract(const Duration(days: 7));
+
+  final groups = <String, List<Map<String, dynamic>>>{'Today': [], 'Yesterday': [], 'This week': [], 'Earlier': []};
+
+  for (final log in logs) {
+    final createdAt = DateTime.parse(log['created_at'] as String);
+    final date = DateTime(createdAt.year, createdAt.month, createdAt.day);
+    if (date == today) {
+      groups['Today']!.add(log);
+    } else if (date == yesterday) {
+      groups['Yesterday']!.add(log);
+    } else if (date.isAfter(weekAgo)) {
+      groups['This week']!.add(log);
+    } else {
+      groups['Earlier']!.add(log);
+    }
+  }
+
+  return groups.entries
+      .where((e) => e.value.isNotEmpty)
+      .map((e) => _GroupedSessions(label: e.key, logs: e.value))
+      .toList();
+}
+
 class _EmptyHistoryView extends StatelessWidget {
   const _EmptyHistoryView();
 
@@ -144,18 +211,18 @@ class _EmptyHistoryView extends StatelessWidget {
               ),
               alignment: Alignment.center,
               child: const Text(
-                '📔',
+                '�',
                 style: TextStyle(fontSize: 48),
               ),
             ),
             const SizedBox(height: 24),
             Text(
-              'No check-ins yet',
+              'No conversations yet',
               style: textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
             Text(
-              'Your past moods and self-care plans will appear here.',
+              'Start a chat from the Chat tab and it will appear here.',
               textAlign: TextAlign.center,
               style: textTheme.bodyMedium?.copyWith(
                     color: colorScheme.onSurface.withOpacity(0.6),
@@ -168,72 +235,73 @@ class _EmptyHistoryView extends StatelessWidget {
   }
 }
 
-class _HistoryLogCard extends StatelessWidget {
+class _HistorySessionCard extends StatelessWidget {
   final Map<String, dynamic> log;
-  final void Function(Map<String, dynamic> plan) onToggle;
+  final VoidCallback onTap;
 
-  const _HistoryLogCard({required this.log, required this.onToggle});
+  const _HistorySessionCard({required this.log, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     final createdAt = DateTime.parse(log['created_at'] as String);
-    final date =
-        '${createdAt.day.toString().padLeft(2, '0')}/${createdAt.month.toString().padLeft(2, '0')}/${createdAt.year}';
     final time =
         '${createdAt.hour.toString().padLeft(2, '0')}:${createdAt.minute.toString().padLeft(2, '0')}';
-    final mood = _MoodVisual.forLabel(log['fusion_result'] as String);
-    final plans = (log['self_care_plans'] as List<dynamic>? ?? [])
-        .cast<Map<String, dynamic>>();
+    final mood = _MoodVisual.forLabel(log['fusion_result'] as String? ?? 'neutral');
+    final title = (log['title'] as String?) ?? 'Check-in';
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                EmojiAvatar(emoji: _moodEmoji(mood.label), size: 48),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      EmotionChip(
-                        label: mood.label,
-                        icon: mood.icon,
-                        color: mood.color,
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '$date · $time · ${log['source']}',
-                        style: textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onSurface.withOpacity(0.55),
-                            ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            if (plans.isNotEmpty) ...[
-              const SizedBox(height: 18),
-              Text(
-                'Self-care plan',
-                style: textTheme.titleMedium,
+      margin: const EdgeInsets.only(bottom: 10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              EmojiAvatar(
+                emoji: _moodEmoji(mood.label),
+                size: 46,
+                backgroundColor: mood.lightColor,
               ),
-              const SizedBox(height: 10),
-              ...plans.map(
-                (plan) => _HistoryPlanItem(
-                  plan: plan,
-                  onToggle: () => onToggle(plan),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      time,
+                      style: textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurface.withOpacity(0.55),
+                          ),
+                    ),
+                  ],
                 ),
+              ),
+              const SizedBox(width: 10),
+              EmotionChip(
+                label: mood.label,
+                icon: mood.icon,
+                color: mood.color,
+              ),
+              const SizedBox(width: 4),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: colorScheme.onSurface.withOpacity(0.4),
+                size: 20,
               ),
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -247,72 +315,6 @@ String _moodEmoji(String label) {
     'angry' => '😠',
     _ => '😐',
   };
-}
-
-class _HistoryPlanItem extends StatelessWidget {
-  final Map<String, dynamic> plan;
-  final VoidCallback onToggle;
-
-  const _HistoryPlanItem({required this.plan, required this.onToggle});
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    final completed = plan['completed_at'] != null;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: InkWell(
-        onTap: onToggle,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: completed
-                ? colorScheme.primaryContainer.withOpacity(0.5)
-                : colorScheme.surfaceContainerHighest.withOpacity(0.5),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: completed
-                  ? colorScheme.primary.withOpacity(0.25)
-                  : colorScheme.outline.withOpacity(0.2),
-            ),
-          ),
-          child: Row(
-            children: [
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 250),
-                transitionBuilder: (child, anim) =>
-                    ScaleTransition(scale: anim, child: child),
-                child: Icon(
-                  completed ? Icons.check_circle_rounded : Icons.circle_outlined,
-                  key: ValueKey(completed),
-                  color: completed
-                      ? colorScheme.primary
-                      : colorScheme.onSurface.withOpacity(0.35),
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  '${plan['day_index']}. ${plan['activity']}',
-                  style: textTheme.bodyMedium?.copyWith(
-                        decoration:
-                            completed ? TextDecoration.lineThrough : null,
-                        color: completed
-                            ? colorScheme.onSurface.withOpacity(0.55)
-                            : colorScheme.onSurface,
-                      ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _MoodVisual {

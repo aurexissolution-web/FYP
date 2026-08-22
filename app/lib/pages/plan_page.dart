@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../services/mood_log_service.dart';
+import '../services/session_service.dart';
 
 class PlanPage extends StatefulWidget {
   const PlanPage({super.key});
@@ -10,7 +10,7 @@ class PlanPage extends StatefulWidget {
 }
 
 class _PlanPageState extends State<PlanPage> {
-  final _service = MoodLogService();
+  final _service = SessionService();
   List<Map<String, dynamic>> _logs = [];
   bool _loading = true;
   String? _error;

@@ -10,6 +10,11 @@ class ModalityResult {
       confidence: (json['confidence'] as num).toDouble(),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'label': label,
+        'confidence': confidence,
+      };
 }
 
 class SelfCareItem {
@@ -24,6 +29,11 @@ class SelfCareItem {
       activity: json['activity'] as String,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'day': day,
+        'activity': activity,
+      };
 }
 
 class HotlineEntry {
@@ -44,6 +54,12 @@ class HotlineEntry {
       description: json['description'] as String,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'phone': phone,
+        'description': description,
+      };
 }
 
 class AnalyzeResult {
@@ -85,4 +101,14 @@ class AnalyzeResult {
           .toList(),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'text_result': textResult?.toJson(),
+        'audio_result': audioResult?.toJson(),
+        'fusion_result': fusionResult.toJson(),
+        'crisis': crisis,
+        'response_message': responseMessage,
+        'self_care_plan': selfCarePlan.map((e) => e.toJson()).toList(),
+        'hotlines': hotlines.map((e) => e.toJson()).toList(),
+      };
 }

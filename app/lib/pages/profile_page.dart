@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../services/mood_log_service.dart';
+import '../services/session_service.dart';
 import '../services/notification_service.dart';
 import '../theme.dart';
 
@@ -14,7 +14,7 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  final _service = MoodLogService();
+  final _service = SessionService();
   List<Map<String, dynamic>> _logs = [];
   bool _loading = true;
   bool _reminders = true;

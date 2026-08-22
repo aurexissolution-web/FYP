@@ -9,11 +9,10 @@ import 'models/analyze_result.dart';
 import 'pages/history_page.dart';
 import 'pages/main_shell.dart';
 import 'pages/onboarding_screen.dart';
-import 'pages/plan_page.dart';
 import 'pages/settings_page.dart';
 import 'services/analyze_api.dart';
 import 'services/audio_recorder_service.dart';
-import 'services/mood_log_service.dart';
+import 'services/session_service.dart';
 import 'services/notification_service.dart';
 import 'supabase_config.dart';
 import 'theme.dart';
@@ -97,7 +96,7 @@ class CheckInPage extends StatefulWidget {
 class _CheckInPageState extends State<CheckInPage> {
   final _textController = TextEditingController();
   final _api = AnalyzeApi();
-  final _moodLogService = MoodLogService();
+  final _sessionService = SessionService();
 
   bool _loading = false;
   String? _error;
@@ -131,7 +130,7 @@ class _CheckInPageState extends State<CheckInPage> {
           : (_audioBase64 != null ? 'voice' : 'text');
 
       try {
-        await _moodLogService.logResult(
+        await _sessionService.logResult(
           result,
           source: source,
           language: _language,

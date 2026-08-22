@@ -3,12 +3,11 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/analyze_result.dart';
 import '../services/analyze_api.dart';
 import '../services/audio_recorder_service.dart';
-import '../services/mood_log_service.dart';
+import '../services/session_service.dart';
 import '../services/notification_service.dart';
 import '../theme.dart';
 import '../widgets/emoji_avatar.dart';
@@ -32,7 +31,9 @@ class _MoodChipData {
 }
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key});
+  final ValueNotifier<String?>? sessionIdNotifier;
+
+  const ChatScreen({super.key, this.sessionIdNotifier});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -61,24 +62,26 @@ class _ChatMessage {
     DateTime? timestamp,
   }) : timestamp = timestamp ?? DateTime.now();
 
-  factory _ChatMessage.userText(String text) =>
-      _ChatMessage._(isUser: true, text: text);
+  factory _ChatMessage.userText(String text, {DateTime? timestamp}) =>
+      _ChatMessage._(isUser: true, text: text, timestamp: timestamp);
 
-  factory _ChatMessage.userVoice(int seconds) =>
-      _ChatMessage._(isUser: true, isVoice: true, durationSeconds: seconds);
+  factory _ChatMessage.userVoice(int seconds, {DateTime? timestamp}) =>
+      _ChatMessage._(isUser: true, isVoice: true, durationSeconds: seconds, timestamp: timestamp);
 
-  factory _ChatMessage.aiText(String text) => _ChatMessage._(text: text);
+  factory _ChatMessage.aiText(String text, {DateTime? timestamp}) =>
+      _ChatMessage._(text: text, timestamp: timestamp);
 
-  factory _ChatMessage.aiMood(AnalyzeResult result) =>
-      _ChatMessage._(result: result);
+  factory _ChatMessage.aiMood(AnalyzeResult result, {DateTime? timestamp}) =>
+      _ChatMessage._(result: result, timestamp: timestamp);
 
-  factory _ChatMessage.aiPlan(AnalyzeResult result) =>
-      _ChatMessage._(result: result, isPlan: true);
+  factory _ChatMessage.aiPlan(AnalyzeResult result, {DateTime? timestamp}) =>
+      _ChatMessage._(result: result, isPlan: true, timestamp: timestamp);
 
-  factory _ChatMessage.error(String text) =>
-      _ChatMessage._(isError: true, text: text);
+  factory _ChatMessage.error(String text, {DateTime? timestamp}) =>
+      _ChatMessage._(isError: true, text: text, timestamp: timestamp);
 
-  factory _ChatMessage.loading() => _ChatMessage._(isLoading: true);
+  factory _ChatMessage.loading({DateTime? timestamp}) =>
+      _ChatMessage._(isLoading: true, timestamp: timestamp);
 }
 
 class _ChatScreenState extends State<ChatScreen> {
@@ -86,7 +89,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final _focusNode = FocusNode();
   final _scroll = ScrollController();
   final _api = AnalyzeApi();
-  final _moodLogService = MoodLogService();
+  final _sessionService = SessionService();
   final _recorder = AudioRecorderService();
 
   final List<_ChatMessage> _messages = [];
@@ -98,6 +101,10 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _requestingPermission = false;
   int _elapsedSeconds = 0;
   bool _showScrollButton = false;
+  bool _hasResult = false;
+  String? _sessionId;
+  ValueNotifier<String?>? _sessionIdNotifier;
+  VoidCallback? _onSessionIdChanged;
   Timer? _timer;
 
   @override
@@ -105,13 +112,31 @@ class _ChatScreenState extends State<ChatScreen> {
     super.initState();
     _messages.add(
       _ChatMessage.aiText(
-        "Hi! I'm EmoBuddy. How are you feeling? Type or send a voice note.",
+        _language == 'ms'
+            ? 'Hai! Apa khabar hari ini?'
+            : "Hi! I'm EmoBuddy. How are you feeling? Type or send a voice note.",
       ),
     );
     _scroll.addListener(_onScroll);
+
+    if (widget.sessionIdNotifier != null) {
+      _sessionIdNotifier = widget.sessionIdNotifier;
+      _onSessionIdChanged = () {
+        final id = _sessionIdNotifier!.value;
+        if (id == null) {
+          _startNewChat(notify: false, confirm: false);
+        } else {
+          _loadSession(id);
+        }
+      };
+      _sessionIdNotifier!.addListener(_onSessionIdChanged!);
+      final initialId = _sessionIdNotifier!.value;
+      if (initialId != null) _loadSession(initialId);
+    }
   }
 
   bool get _isWelcomeView => _conversationTurns == 0 && _messages.length <= 1;
+  bool get _shouldShowPlanPrompt => !_hasResult && _conversationTurns >= 2;
 
   void _onScroll() {
     if (!_scroll.hasClients) return;
@@ -123,8 +148,77 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  Future<void> _startNewChat() async {
-    if (_conversation.isNotEmpty) {
+  Future<void> _showMoreMenu() async {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isMs = _language == 'ms';
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: colorScheme.outline.withOpacity(0.25)),
+              boxShadow: [
+                BoxShadow(
+                  color: colorScheme.shadow.withOpacity(0.2),
+                  blurRadius: 24,
+                  offset: const Offset(0, -4),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(top: 8, bottom: 4),
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: colorScheme.outline.withOpacity(0.4),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                ListTile(
+                  leading: Icon(Icons.language_rounded, color: colorScheme.primary),
+                  title: Text(isMs ? 'Bahasa' : 'Language'),
+                  subtitle: Text(isMs ? 'Bahasa Melayu' : 'English'),
+                  onTap: () {
+                    setState(() => _language = _language == 'en' ? 'ms' : 'en');
+                    Navigator.pop(sheetContext);
+                  },
+                ),
+                ListTile(
+                  leading: Icon(Icons.add_circle_outline_rounded, color: colorScheme.primary),
+                  title: Text(isMs ? 'Sembang baharu' : 'New chat'),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _startNewChat();
+                  },
+                ),
+                ListTile(
+                  leading: Icon(Icons.settings_outlined, color: colorScheme.primary),
+                  title: const Text('Settings'),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    Navigator.of(context).pushNamed('/settings');
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _startNewChat({bool notify = true, bool confirm = true}) async {
+    if (confirm && _conversation.isNotEmpty) {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
@@ -152,6 +246,8 @@ class _ChatScreenState extends State<ChatScreen> {
     }
     _focusNode.unfocus();
     setState(() {
+      _sessionId = null;
+      _hasResult = false;
       _messages.clear();
       _conversation.clear();
       _conversationTurns = 0;
@@ -163,6 +259,76 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       );
     });
+    if (notify) _sessionIdNotifier?.value = null;
+  }
+
+  String _shortTitle(String text) {
+    final trimmed = text.trim();
+    if (trimmed.length <= 30) return trimmed;
+    return '${trimmed.substring(0, 30)}...';
+  }
+
+  Future<void> _loadSession(String? id) async {
+    if (id == null || id == _sessionId) return;
+    _focusNode.unfocus();
+    setState(() => _sending = true);
+
+    try {
+      final rows = await _sessionService.getSessionMessages(id);
+      final loaded = <_ChatMessage>[];
+      final conversation = <String>[];
+      for (final row in rows) {
+        final role = row['role'] as String;
+        final type = row['type'] as String;
+        final content = row['content'] as String?;
+        final metadata = row['metadata'] as Map<String, dynamic>?;
+        final createdAt = DateTime.parse(row['created_at'] as String);
+
+        if (role == 'user') {
+          if (type == 'voice') {
+            final duration = (metadata?['duration_seconds'] as num?)?.toInt() ?? 0;
+            loaded.add(_ChatMessage.userVoice(duration, timestamp: createdAt));
+          } else {
+            final text = content ?? '';
+            loaded.add(_ChatMessage.userText(text, timestamp: createdAt));
+            conversation.add(text);
+          }
+        } else {
+          if (type == 'text') {
+            loaded.add(_ChatMessage.aiText(content ?? '', timestamp: createdAt));
+          } else if (type == 'mood' || type == 'crisis' || type == 'plan') {
+            final resultMap = metadata?['result'] as Map<String, dynamic>?;
+            if (resultMap != null) {
+              final result = AnalyzeResult.fromJson(resultMap);
+              if (type == 'plan') {
+                loaded.add(_ChatMessage.aiPlan(result, timestamp: createdAt));
+              } else {
+                loaded.add(_ChatMessage.aiMood(result, timestamp: createdAt));
+              }
+            }
+          }
+        }
+      }
+
+      setState(() {
+        _sessionId = id;
+        _messages.clear();
+        _conversation
+          ..clear()
+          ..addAll(conversation);
+        _conversationTurns = conversation.length;
+        _hasResult = loaded.any((m) => m.result != null);
+        _messages.addAll(loaded);
+        _sending = false;
+      });
+      _scrollToBottom();
+    } catch (e) {
+      setState(() {
+        _sending = false;
+        _messages.add(_ChatMessage.error('Could not load this conversation.'));
+      });
+      _scrollToBottom();
+    }
   }
 
   void _scrollToBottom() {
@@ -200,6 +366,18 @@ class _ChatScreenState extends State<ChatScreen> {
       return;
     }
 
+    _sessionId ??= await _sessionService.createSession(
+      title: _shortTitle(text),
+      language: _language,
+    );
+
+    await _sessionService.addMessage(
+      sessionId: _sessionId!,
+      role: 'user',
+      type: 'text',
+      content: text,
+    );
+
     setState(() {
       _sending = true;
       _messages.add(_ChatMessage.userText(text));
@@ -219,16 +397,34 @@ class _ChatScreenState extends State<ChatScreen> {
         setState(() => _messages.add(_ChatMessage.aiText(chatReply.reply)));
         _scrollToBottom();
         setState(() => _sending = false);
+        await _sessionService.addMessage(
+          sessionId: _sessionId!,
+          role: 'ai',
+          type: 'text',
+          content: chatReply.reply,
+        );
         await _analyzeConversation();
         return;
       }
       setState(() => _messages.add(_ChatMessage.aiText(chatReply.reply)));
+      await _sessionService.addMessage(
+        sessionId: _sessionId!,
+        role: 'ai',
+        type: 'text',
+        content: chatReply.reply,
+      );
     } catch (e) {
       final reply = _conversationFollowUp(text, _conversationTurns);
       setState(() {
         _messages.removeLast();
         _messages.add(_ChatMessage.aiText(reply));
       });
+      await _sessionService.addMessage(
+        sessionId: _sessionId!,
+        role: 'ai',
+        type: 'text',
+        content: reply,
+      );
     } finally {
       setState(() => _sending = false);
     }
@@ -236,6 +432,19 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _sendVoice(String audioBase64, int duration) async {
+    _sessionId ??= await _sessionService.createSession(
+      title: 'Voice check-in',
+      language: _language,
+    );
+
+    await _sessionService.addMessage(
+      sessionId: _sessionId!,
+      role: 'user',
+      type: 'voice',
+      content: null,
+      metadata: {'duration_seconds': duration},
+    );
+
     setState(() {
       _sending = true;
       _messages.add(_ChatMessage.userVoice(duration));
@@ -271,14 +480,18 @@ class _ChatScreenState extends State<ChatScreen> {
       if (!result.crisis && result.selfCarePlan.isNotEmpty) {
         _messages.add(_ChatMessage.aiPlan(result));
       }
-      _conversation.clear();
-      _conversationTurns = 0;
+      _hasResult = true;
     });
     _scrollToBottom();
 
     try {
-      await _moodLogService.logResult(
-        result,
+      _sessionId ??= await _sessionService.createSession(
+        title: _shortTitle(conversationText ?? 'Voice check-in'),
+        language: _language,
+      );
+      await _sessionService.saveAnalysis(
+        sessionId: _sessionId!,
+        result: result,
         source: source,
         language: _language,
         conversationText: conversationText,
@@ -618,6 +831,9 @@ class _ChatScreenState extends State<ChatScreen> {
     _controller.dispose();
     _focusNode.dispose();
     _scroll.dispose();
+    if (_onSessionIdChanged != null) {
+      _sessionIdNotifier?.removeListener(_onSessionIdChanged!);
+    }
     super.dispose();
   }
 
@@ -629,43 +845,84 @@ class _ChatScreenState extends State<ChatScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const _AppLogo(),
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                colorScheme.primary.withOpacity(isLight ? 0.10 : 0.16),
+                colorScheme.secondary.withOpacity(isLight ? 0.08 : 0.12),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         actions: [
           _SoftIconButton(
-            icon: Icons.language_rounded,
-            tooltip: _language == 'ms' ? 'Tukar ke English' : 'Switch to Bahasa Melayu',
-            onPressed: () => setState(() => _language = _language == 'en' ? 'ms' : 'en'),
-          ),
-          const SizedBox(width: 8),
-          _SoftIconButton(
-            icon: Icons.add,
-            tooltip: _language == 'ms' ? 'Sembang baharu' : 'New chat',
-            onPressed: _startNewChat,
-          ),
-          const SizedBox(width: 8),
-          _SoftIconButton(
-            icon: Icons.settings_outlined,
-            tooltip: 'Settings',
-            onPressed: () => Navigator.of(context).pushNamed('/settings'),
+            icon: Icons.more_horiz_rounded,
+            tooltip: _language == 'ms' ? 'Lagi' : 'More',
+            onPressed: _showMoreMenu,
           ),
           const SizedBox(width: 12),
         ],
       ),
       body: Stack(
         children: [
-          Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              colorScheme.surface,
-              colorScheme.surface,
-              isLight ? Colors.white : const Color(0xFF14131C),
-            ],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            stops: const [0.0, 0.6, 1.0],
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    colorScheme.surface,
+                    colorScheme.surface,
+                    isLight ? Colors.white : const Color(0xFF14131C),
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  stops: const [0.0, 0.6, 1.0],
+                ),
+              ),
+            ),
           ),
-        ),
-        child: GestureDetector(
+          // Soft, out-of-focus color "blobs" behind the chat content --
+          // purely decorative, so they must never intercept touches.
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Stack(
+                children: [
+                  Positioned(
+                    top: -80,
+                    right: -60,
+                    child: _BackgroundBlob(
+                      size: 260,
+                      color: colorScheme.primary,
+                      opacity: isLight ? 0.16 : 0.22,
+                    ),
+                  ),
+                  Positioned(
+                    top: 220,
+                    left: -100,
+                    child: _BackgroundBlob(
+                      size: 220,
+                      color: colorScheme.secondary,
+                      opacity: isLight ? 0.14 : 0.16,
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 40,
+                    right: -80,
+                    child: _BackgroundBlob(
+                      size: 240,
+                      color: colorScheme.primary,
+                      opacity: isLight ? 0.10 : 0.14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () => _focusNode.unfocus(),
           child: SafeArea(
@@ -687,16 +944,10 @@ class _ChatScreenState extends State<ChatScreen> {
                           ),
                         ),
                 ),
-                if (_conversationTurns >= 2) _buildPlanPromptChip(),
-                // The welcome view already renders its own chip row, so
-                // only show this persistent one once a conversation exists.
-                if (!_isWelcomeView &&
-                    _messages.isNotEmpty &&
-                    !_messages.last.isUser &&
-                    !_messages.last.isLoading &&
-                    !_messages.last.isError &&
-                    !_messages.last.isPlan)
-                  _buildQuickReplyChips(),
+                // The mood shortcut chips are only shown on the welcome
+                // screen (inside _buildWelcomeView) -- once a conversation
+                // has started, only the plan-prompt chip appears here.
+                if (_shouldShowPlanPrompt) _buildPlanPromptChip(),
                 _buildComposer(),
               ],
             ),
@@ -1084,6 +1335,37 @@ class _AppLogo extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// A large, soft-edged circle of color used to give the chat background a
+/// gentle "aurora" feel instead of a flat wash. Purely decorative.
+class _BackgroundBlob extends StatelessWidget {
+  final double size;
+  final Color color;
+  final double opacity;
+
+  const _BackgroundBlob({
+    required this.size,
+    required this.color,
+    required this.opacity,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+          colors: [
+            color.withOpacity(opacity),
+            color.withOpacity(0),
+          ],
+        ),
+      ),
     );
   }
 }
