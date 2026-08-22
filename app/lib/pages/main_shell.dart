@@ -33,7 +33,10 @@ class _MainShellState extends State<MainShell> {
   }
 
   late final _pages = [
-    ChatScreen(sessionIdNotifier: _selectedSessionId),
+    ChatScreen(
+      sessionIdNotifier: _selectedSessionId,
+      onBackToHistory: () => setState(() => _index = 1),
+    ),
     HistoryPage(
       onSessionSelected: (id) {
         _selectedSessionId.value = id;

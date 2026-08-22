@@ -32,8 +32,9 @@ class _MoodChipData {
 
 class ChatScreen extends StatefulWidget {
   final ValueNotifier<String?>? sessionIdNotifier;
+  final VoidCallback? onBackToHistory;
 
-  const ChatScreen({super.key, this.sessionIdNotifier});
+  const ChatScreen({super.key, this.sessionIdNotifier, this.onBackToHistory});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -845,6 +846,16 @@ class _ChatScreenState extends State<ChatScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: _sessionId != null
+            ? _SoftIconButton(
+                icon: Icons.arrow_back_rounded,
+                tooltip: _language == 'ms' ? 'Kembali ke sejarah' : 'Back to history',
+                onPressed: () {
+                  _sessionIdNotifier?.value = null;
+                  widget.onBackToHistory?.call();
+                },
+              )
+            : null,
         title: const _AppLogo(),
         flexibleSpace: Container(
           decoration: BoxDecoration(
