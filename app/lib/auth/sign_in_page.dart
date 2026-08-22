@@ -141,14 +141,10 @@ class _SignInPageState extends State<SignInPage> {
         const Spacer(flex: 2),
         Center(
           child: Container(
-            width: 190,
-            height: 190,
+            width: 220,
+            height: 220,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Colors.white, Color(0xFFE9DFF1)],
-              ),
+              color: Colors.white,
               borderRadius: BorderRadius.circular(48),
               boxShadow: [
                 BoxShadow(
@@ -158,16 +154,10 @@ class _SignInPageState extends State<SignInPage> {
                 ),
               ],
             ),
-            child: const Center(
-              child: Text(
-                'LOGO',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF7B4E8C),
-                  letterSpacing: 3,
-                ),
-              ),
+            padding: const EdgeInsets.all(20),
+            child: Image.asset(
+              'assets/logo_full.png',
+              fit: BoxFit.contain,
             ),
           ),
         ),
