@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../widgets/biometric_guard.dart';
 import 'sign_in_page.dart';
 
 class AuthGate extends StatelessWidget {
@@ -15,7 +16,7 @@ class AuthGate extends StatelessWidget {
       builder: (context, snapshot) {
         final session = Supabase.instance.client.auth.currentSession;
         if (session != null) {
-          return authenticatedBuilder(context);
+          return BiometricGuard(child: authenticatedBuilder(context));
         }
         return const SignInPage();
       },

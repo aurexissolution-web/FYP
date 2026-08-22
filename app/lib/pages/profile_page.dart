@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/session_service.dart';
 import '../services/notification_service.dart';
 import '../theme.dart';
+import '../widgets/biometric_guard.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -18,6 +19,7 @@ class _ProfilePageState extends State<ProfilePage> {
   List<Map<String, dynamic>> _logs = [];
   bool _loading = true;
   bool _reminders = true;
+  bool _biometric = false;
   TimeOfDay? _reminderTime;
 
   @override
@@ -25,6 +27,12 @@ class _ProfilePageState extends State<ProfilePage> {
     super.initState();
     _load();
     _loadReminderPrefs();
+    _loadBiometricPref();
+  }
+
+  Future<void> _loadBiometricPref() async {
+    final enabled = await isBiometricEnabled();
+    if (mounted) setState(() => _biometric = enabled);
   }
 
   Future<void> _load() async {
@@ -347,6 +355,18 @@ class _ProfilePageState extends State<ProfilePage> {
                     _SectionCard(
                       title: 'Account',
                       children: [
+                        SwitchListTile(
+                          value: _biometric,
+                          onChanged: (v) async {
+                            setState(() => _biometric = v);
+                            await setBiometricEnabled(v);
+                          },
+                          title: const Text('Use Face ID / biometrics'),
+                          subtitle: const Text('Protect your check-ins at launch'),
+                          secondary: Icon(Icons.fingerprint,
+                              color: colorScheme.primary),
+                        ),
+                        const Divider(height: 1, indent: 16, endIndent: 16),
                         ListTile(
                           leading: Icon(Icons.logout, color: colorScheme.primary),
                           title: const Text('Sign out'),

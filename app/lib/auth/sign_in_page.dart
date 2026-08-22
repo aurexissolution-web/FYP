@@ -1,7 +1,13 @@
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../pages/confirm_email_page.dart';
+import '../pages/forgot_password_page.dart';
+import '../widgets/logo_hero.dart';
 
 enum _AuthMode { welcome, form }
 
@@ -13,6 +19,7 @@ class SignInPage extends StatefulWidget {
 }
 
 class _SignInPageState extends State<SignInPage> {
+  final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -20,20 +27,19 @@ class _SignInPageState extends State<SignInPage> {
   _AuthMode _mode = _AuthMode.welcome;
   bool _isSignUp = false;
   bool _loading = false;
+  bool _obscurePassword = true;
+  bool _obscureConfirm = true;
   String? _error;
   String? _info;
 
+  static final _emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
+
   Future<void> _submit() async {
+    final isValid = _formKey.currentState?.validate() ?? false;
+    if (!isValid) return;
+
     final email = _emailController.text.trim();
     final password = _passwordController.text;
-    final confirm = _confirmPasswordController.text;
-
-    if (_isSignUp && password != confirm) {
-      setState(() => _error = 'Passwords do not match.');
-      return;
-    }
-
-    if (email.isEmpty || password.isEmpty) return;
 
     setState(() {
       _loading = true;
@@ -44,38 +50,46 @@ class _SignInPageState extends State<SignInPage> {
     try {
       final auth = Supabase.instance.client.auth;
       if (_isSignUp) {
-        await auth.signUp(email: email, password: password);
-        setState(() {
-          _info = 'Account created. If email confirmation is enabled, check '
-              'your inbox, then sign in.';
-          _isSignUp = false;
-          _confirmPasswordController.clear();
-        });
+        await auth.signUp(
+          email: email,
+          password: password,
+        );
+        if (!mounted) return;
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ConfirmEmailPage(email: email),
+          ),
+        );
       } else {
         await auth.signInWithPassword(email: email, password: password);
       }
     } on AuthException catch (e) {
       setState(() => _error = e.message);
     } catch (e) {
-      setState(() => _error = e.toString());
+      setState(() => _error = 'Something went wrong. Please try again.');
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
-  void _showSocialComingSoon(String name) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: Colors.white,
-        elevation: 8,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        content: Text(
-          '$name sign-in is not configured yet.',
-          style: const TextStyle(color: Color(0xFF7B4E8C)),
-        ),
-      ),
-    );
+  Future<void> _signInWithSocial(OAuthProvider provider) async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      await Supabase.instance.client.auth.signInWithOAuth(
+        provider,
+        redirectTo: kIsWeb ? null : 'com.emobuddy.emobuddy://callback/',
+        authScreenLaunchMode: LaunchMode.externalApplication,
+      );
+    } on AuthException catch (e) {
+      setState(() => _error = e.message);
+    } catch (e) {
+      setState(() => _error = 'Social sign-in is not available right now.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   void _setMode(_AuthMode mode, {bool isSignUp = false}) {
@@ -85,6 +99,27 @@ class _SignInPageState extends State<SignInPage> {
       _error = null;
       _info = null;
     });
+  }
+
+  String? _emailValidator(String? value) {
+    if (value == null || value.trim().isEmpty) return 'Email is required.';
+    if (!_emailRegex.hasMatch(value.trim())) return 'Please enter a valid email.';
+    return null;
+  }
+
+  String? _passwordValidator(String? value) {
+    if (value == null || value.isEmpty) return 'Password is required.';
+    if (_isSignUp && value.length < 8) {
+      return 'Password must be at least 8 characters.';
+    }
+    if (value.length < 6) return 'Password must be at least 6 characters.';
+    return null;
+  }
+
+  String? _confirmPasswordValidator(String? value) {
+    if (!_isSignUp) return null;
+    if (value != _passwordController.text) return 'Passwords do not match.';
+    return null;
   }
 
   @override
@@ -98,7 +133,7 @@ class _SignInPageState extends State<SignInPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF7B4E8C),
+      backgroundColor: const Color(0xFF4A7DBA),
       resizeToAvoidBottomInset: true,
       body: Container(
         decoration: const BoxDecoration(
@@ -106,9 +141,8 @@ class _SignInPageState extends State<SignInPage> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFFB85B8F),
-              Color(0xFF8F4E8E),
-              Color(0xFF6B4E8C),
+              Color(0xFF5B8BD8),
+              Color(0xFF7FB9B4),
             ],
           ),
         ),
@@ -139,29 +173,19 @@ class _SignInPageState extends State<SignInPage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Spacer(flex: 2),
-        Center(
-          child: Container(
-            width: 220,
-            height: 220,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(48),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.25),
-                  blurRadius: 32,
-                  offset: const Offset(0, 14),
-                ),
-              ],
-            ),
-            padding: const EdgeInsets.all(20),
-            child: Image.asset(
-              'assets/logo_full.png',
-              fit: BoxFit.contain,
-            ),
+        const Center(child: LogoHero(size: 160)),
+        const SizedBox(height: 28),
+        const Text(
+          'EmoBuddy',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 32,
+            fontWeight: FontWeight.w800,
+            color: Colors.white,
+            letterSpacing: 0.5,
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 10),
         const Text(
           'A quiet space to check in with yourself.',
           textAlign: TextAlign.center,
@@ -172,14 +196,28 @@ class _SignInPageState extends State<SignInPage> {
           ),
         ),
         const Spacer(flex: 3),
-        _pillButton(
-          label: 'SIGN IN',
+        _glassButton(
           onPressed: () => _setMode(_AuthMode.form, isSignUp: false),
+          child: const Text(
+            'SIGN IN',
+            style: TextStyle(
+              color: Colors.white,
+              letterSpacing: 1.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ),
         const SizedBox(height: 16),
-        _pillButton(
-          label: 'SIGN UP',
+        _glassButton(
           onPressed: () => _setMode(_AuthMode.form, isSignUp: true),
+          child: const Text(
+            'CREATE ACCOUNT',
+            style: TextStyle(
+              color: Colors.white,
+              letterSpacing: 1.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ),
         const SizedBox(height: 24),
       ],
@@ -190,125 +228,175 @@ class _SignInPageState extends State<SignInPage> {
     return SingleChildScrollView(
       key: const ValueKey('form'),
       physics: const BouncingScrollPhysics(),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: IconButton(
-              style: IconButton.styleFrom(
-                backgroundColor: Colors.white.withValues(alpha: 0.1),
-                shape: const CircleBorder(),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: IconButton(
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.white.withValues(alpha: 0.1),
+                  shape: const CircleBorder(),
+                ),
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () => _setMode(_AuthMode.welcome),
               ),
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () => _setMode(_AuthMode.welcome),
             ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            _isSignUp ? 'Create an account' : 'Welcome back',
-            style: const TextStyle(
-              fontSize: 30,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
+            const SizedBox(height: 16),
+            Text(
+              _isSignUp ? 'Create an account' : 'Welcome back',
+              style: const TextStyle(
+                fontSize: 30,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _isSignUp
-                ? 'Sign up to start checking in with yourself.'
-                : 'Sign in to continue your check-ins.',
-            style: const TextStyle(color: Colors.white70, height: 1.4),
-          ),
-          const SizedBox(height: 28),
-          if (_error != null) ...[
-            _AuthMessage(message: _error!, isError: true),
-            const SizedBox(height: 16),
-          ],
-          if (_info != null) ...[
-            _AuthMessage(message: _info!, isError: false),
-            const SizedBox(height: 16),
-          ],
-          _authField(
-            controller: _emailController,
-            icon: Icons.email_outlined,
-            label: 'Email',
-            hint: 'you@example.com',
-            keyboardType: TextInputType.emailAddress,
-          ),
-          const SizedBox(height: 16),
-          _authField(
-            controller: _passwordController,
-            icon: Icons.lock_outline,
-            label: 'Password',
-            hint: '••••••••',
-            obscure: true,
-          ),
-          if (_isSignUp) ...[
+            const SizedBox(height: 8),
+            Text(
+              _isSignUp
+                  ? 'Sign up to start checking in with yourself.'
+                  : 'Sign in to continue your check-ins.',
+              style: const TextStyle(color: Colors.white70, height: 1.4),
+            ),
+            const SizedBox(height: 28),
+            if (_error != null) ...[
+              _AuthMessage(message: _error!, isError: true),
+              const SizedBox(height: 16),
+            ],
+            if (_info != null) ...[
+              _AuthMessage(message: _info!, isError: false),
+              const SizedBox(height: 16),
+            ],
+            _authField(
+              controller: _emailController,
+              icon: Icons.email_outlined,
+              label: 'Email',
+              hint: 'you@example.com',
+              keyboardType: TextInputType.emailAddress,
+              validator: _emailValidator,
+              autofillHints: const [AutofillHints.email],
+              textInputAction: TextInputAction.next,
+            ),
             const SizedBox(height: 16),
             _authField(
-              controller: _confirmPasswordController,
+              controller: _passwordController,
               icon: Icons.lock_outline,
-              label: 'Confirm password',
+              label: 'Password',
               hint: '••••••••',
-              obscure: true,
+              obscure: _obscurePassword,
+              suffix: IconButton(
+                icon: Icon(
+                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                  color: Colors.white70,
+                  size: 20,
+                ),
+                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+              ),
+              validator: _passwordValidator,
+              autofillHints: const [AutofillHints.password],
+              textInputAction: _isSignUp ? TextInputAction.next : TextInputAction.done,
+              onFieldSubmitted: _isSignUp ? null : (_) => _submit(),
             ),
+            if (_isSignUp) ...[
+              const SizedBox(height: 8),
+              _PasswordStrengthIndicator(password: _passwordController.text),
+              const SizedBox(height: 16),
+              _authField(
+                controller: _confirmPasswordController,
+                icon: Icons.lock_outline,
+                label: 'Confirm password',
+                hint: '••••••••',
+                obscure: _obscureConfirm,
+                suffix: IconButton(
+                  icon: Icon(
+                    _obscureConfirm ? Icons.visibility_off : Icons.visibility,
+                    color: Colors.white70,
+                    size: 20,
+                  ),
+                  onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                ),
+                validator: _confirmPasswordValidator,
+                textInputAction: TextInputAction.done,
+                onFieldSubmitted: (_) => _submit(),
+              ),
+            ],
+            const SizedBox(height: 24),
+            _filledPillButton(
+              label: _isSignUp ? 'SIGN UP' : 'SIGN IN',
+              onPressed: _loading ? null : _submit,
+              loading: _loading,
+            ),
+            const SizedBox(height: 12),
+            if (!_isSignUp)
+              Align(
+                alignment: Alignment.center,
+                child: TextButton(
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    overlayColor: Colors.white.withValues(alpha: 0.1),
+                  ),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const ForgotPasswordPage(),
+                    ),
+                  ),
+                  child: const Text(
+                    'Forgot password?',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  _isSignUp ? 'Already have an account?' : "Don't have an account?",
+                  style: const TextStyle(color: Colors.white70),
+                ),
+                TextButton(
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    overlayColor: Colors.white.withValues(alpha: 0.1),
+                  ),
+                  onPressed: _loading
+                      ? null
+                      : () => setState(() => _isSignUp = !_isSignUp),
+                  child: Text(
+                    _isSignUp ? 'Sign in' : 'Sign up',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Row(
+              children: [
+                Expanded(child: Divider(color: Colors.white38)),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  child: Text('or continue with', style: TextStyle(color: Colors.white70)),
+                ),
+                Expanded(child: Divider(color: Colors.white38)),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _socialButton(
+              icon: Icons.g_mobiledata,
+              label: 'Continue with Google',
+              onPressed: () => _signInWithSocial(OAuthProvider.google),
+            ),
+            const SizedBox(height: 10),
+            _socialButton(
+              icon: Icons.apple,
+              label: 'Continue with Apple',
+              onPressed: () => _signInWithSocial(OAuthProvider.apple),
+            ),
+            const SizedBox(height: 20),
           ],
-          const SizedBox(height: 24),
-          _filledPillButton(
-            label: _isSignUp ? 'SIGN UP' : 'SIGN IN',
-            onPressed: _loading ? null : _submit,
-            loading: _loading,
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                _isSignUp ? 'Already have an account?' : "Don't have an account?",
-                style: const TextStyle(color: Colors.white70),
-              ),
-              TextButton(
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  overlayColor: Colors.white.withValues(alpha: 0.1),
-                ),
-                onPressed: _loading
-                    ? null
-                    : () => _setMode(_AuthMode.form, isSignUp: !_isSignUp),
-                child: Text(
-                  _isSignUp ? 'Sign in' : 'Sign up',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          const Row(
-            children: [
-              Expanded(child: Divider(color: Colors.white38)),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12),
-                child: Text('or continue with', style: TextStyle(color: Colors.white70)),
-              ),
-              Expanded(child: Divider(color: Colors.white38)),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _socialButton(
-            icon: Icons.g_mobiledata,
-            label: 'Continue with Google',
-            onPressed: () => _showSocialComingSoon('Google'),
-          ),
-          const SizedBox(height: 10),
-          _socialButton(
-            icon: Icons.apple,
-            label: 'Continue with Apple',
-            onPressed: () => _showSocialComingSoon('Apple'),
-          ),
-          const SizedBox(height: 20),
-        ],
+        ),
       ),
     );
   }
@@ -365,20 +453,6 @@ class _SignInPageState extends State<SignInPage> {
     );
   }
 
-  Widget _pillButton({required String label, required VoidCallback? onPressed}) {
-    return _glassButton(
-      onPressed: onPressed,
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: Colors.white,
-          letterSpacing: 1.5,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-
   Widget _filledPillButton({
     required String label,
     required VoidCallback? onPressed,
@@ -427,11 +501,20 @@ class _SignInPageState extends State<SignInPage> {
     required String hint,
     TextInputType keyboardType = TextInputType.text,
     bool obscure = false,
+    Widget? suffix,
+    String? Function(String?)? validator,
+    Iterable<String>? autofillHints,
+    TextInputAction? textInputAction,
+    void Function(String)? onFieldSubmitted,
   }) {
-    return TextField(
+    return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
       obscureText: obscure,
+      validator: validator,
+      autofillHints: autofillHints,
+      textInputAction: textInputAction,
+      onFieldSubmitted: onFieldSubmitted,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         filled: true,
@@ -448,12 +531,23 @@ class _SignInPageState extends State<SignInPage> {
           borderRadius: BorderRadius.circular(18),
           borderSide: const BorderSide(color: Colors.white, width: 1.5),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide(color: Colors.red.shade200, width: 1.5),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide(color: Colors.red.shade200, width: 1.5),
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         prefixIcon: Icon(icon, color: Colors.white70),
+        suffixIcon: suffix,
         labelText: label,
         labelStyle: const TextStyle(color: Colors.white70),
         hintText: hint,
         hintStyle: const TextStyle(color: Colors.white38),
+        errorStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -464,7 +558,7 @@ class _SignInPageState extends State<SignInPage> {
     required VoidCallback onPressed,
   }) {
     return _glassButton(
-      onPressed: onPressed,
+      onPressed: _loading ? null : onPressed,
       height: 52,
       backgroundAlpha: 0.02,
       borderAlpha: 0.35,
@@ -518,6 +612,62 @@ class _AuthMessage extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _PasswordStrengthIndicator extends StatelessWidget {
+  final String password;
+
+  const _PasswordStrengthIndicator({required this.password});
+
+  int _score(String password) {
+    int score = 0;
+    if (password.length >= 8) score++;
+    if (password.contains(RegExp(r'[A-Z]'))) score++;
+    if (password.contains(RegExp(r'[0-9]'))) score++;
+    if (password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>_\-\[\]\\\/]'))) score++;
+    return score;
+  }
+
+  (String, Color) _label(int score) {
+    return switch (score) {
+      0 => ('Too short', const Color(0xFFFF6B6B)),
+      1 => ('Weak', const Color(0xFFFFA07A)),
+      2 => ('Fair', const Color(0xFFFFD166)),
+      3 => ('Strong', const Color(0xFF7FB9B4)),
+      _ => ('Very strong', const Color(0xFF86B45B)),
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (password.isEmpty) return const SizedBox.shrink();
+    final score = _score(password);
+    final (label, color) = _label(score);
+    return Row(
+      children: [
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: score / 4,
+              backgroundColor: Colors.white.withValues(alpha: 0.15),
+              color: color,
+              minHeight: 6,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
     );
   }
 }

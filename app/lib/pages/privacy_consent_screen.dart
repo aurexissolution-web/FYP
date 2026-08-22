@@ -36,7 +36,7 @@ class _PrivacyConsentScreenState extends State<PrivacyConsentScreen> {
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (_) => const AuthGate(
+        builder: (_) => AuthGate(
           authenticatedBuilder: (context) => const MainShell(),
         ),
       ),

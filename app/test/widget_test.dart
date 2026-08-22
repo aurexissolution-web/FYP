@@ -17,10 +17,13 @@ void main() {
 
   testWidgets('Unauthenticated user sees the sign-in page',
       (WidgetTester tester) async {
-    await tester.pumpWidget(const EmoBuddyApp(showOnboarding: false));
+    await tester.pumpWidget(const EmoBuddyApp(
+      showOnboarding: false,
+      showPrivacyConsent: false,
+    ));
     await tester.pump();
 
-    expect(find.text('Sign in'), findsWidgets);
+    expect(find.text('SIGN IN'), findsWidgets);
     expect(find.byType(TextField), findsNWidgets(2));
   });
 }
