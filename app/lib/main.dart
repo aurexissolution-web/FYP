@@ -1,126 +1,91 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'auth/auth_gate.dart';
 import 'models/analyze_result.dart';
+import 'pages/history_page.dart';
+import 'pages/main_shell.dart';
+import 'pages/onboarding_screen.dart';
+import 'pages/plan_page.dart';
+import 'pages/settings_page.dart';
 import 'services/analyze_api.dart';
 import 'services/audio_recorder_service.dart';
 import 'services/mood_log_service.dart';
+import 'services/notification_service.dart';
 import 'supabase_config.dart';
+import 'theme.dart';
 
 const _maxRecordingSeconds = 15;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Supabase.initialize(url: kSupabaseUrl, publishableKey: kSupabaseAnonKey);
-  runApp(const EmoBuddyApp());
+  await Supabase.initialize(
+    url: kSupabaseUrl,
+    anonKey: kSupabaseAnonKey,
+  );
+  await loadEmoBuddyThemeMode();
+  final prefs = await SharedPreferences.getInstance();
+  final hasSeenOnboarding = prefs.getBool('has_seen_onboarding') ?? false;
+
+  try {
+    await NotificationService.initialize();
+  } catch (e, st) {
+    debugPrint('Supabase.initialize failed: $e');
+    debugPrint(st.toString());
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          body: SafeArea(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  'Could not initialize EmoBuddy.\n\n$e',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    return;
+  }
+  runApp(EmoBuddyApp(showOnboarding: !hasSeenOnboarding));
 }
 
 class EmoBuddyApp extends StatelessWidget {
-  const EmoBuddyApp({super.key});
+  final bool showOnboarding;
+
+  const EmoBuddyApp({super.key, required this.showOnboarding});
 
   @override
   Widget build(BuildContext context) {
-    final baseScheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xFF9E8FBC),
-      brightness: Brightness.light,
-    );
-
-    return MaterialApp(
-      title: 'EmoBuddy',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: baseScheme,
-        useMaterial3: true,
-        brightness: Brightness.light,
-        scaffoldBackgroundColor: const Color(0xFFF3F0F7),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(18),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(18),
-            borderSide: const BorderSide(color: Color(0xFFE5EAEC), width: 1),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(18),
-            borderSide: const BorderSide(color: Color(0xFF7FB9B4), width: 2),
-          ),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-          hintStyle: const TextStyle(color: Color(0xFF9BA5A8)),
-        ),
-        filledButtonTheme: FilledButtonThemeData(
-          style: FilledButton.styleFrom(
-            backgroundColor: baseScheme.primaryContainer,
-            foregroundColor: baseScheme.onPrimaryContainer,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            textStyle:
-                const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-          ),
-        ),
-        outlinedButtonTheme: OutlinedButtonThemeData(
-          style: OutlinedButton.styleFrom(
-            side: const BorderSide(color: Color(0xFFD2D9DC)),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
-          ),
-        ),
-        cardTheme: CardThemeData(
-          elevation: 0.8,
-          surfaceTintColor: Colors.white,
-          color: Colors.white,
-          shadowColor: const Color(0x1A2B3033),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-        ),
-        appBarTheme: const AppBarTheme(
-          elevation: 0,
-          scrolledUnderElevation: 0.8,
-          backgroundColor: Color(0xFFF3F0F7),
-          foregroundColor: Color(0xFF3A4346),
-          centerTitle: false,
-        ),
-        textTheme: Typography.material2021(
-          platform: TargetPlatform.android,
-        ).black.copyWith(
-              headlineSmall: const TextStyle(
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF2F3639),
-              ),
-              titleLarge: const TextStyle(
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF2F3639),
-              ),
-              bodyLarge: const TextStyle(
-                fontSize: 16,
-                color: Color(0xFF4A5356),
-              ),
-              bodyMedium: const TextStyle(
-                fontSize: 14,
-                color: Color(0xFF4A5356),
-              ),
-              bodySmall: const TextStyle(
-                fontSize: 12,
-                color: Color(0xFF757F83),
-              ),
-            ),
-      ),
-      home: AuthGate(authenticatedBuilder: (context) => const CheckInPage()),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: emoBuddyThemeMode,
+      builder: (context, themeMode, _) {
+        return MaterialApp(
+          title: 'EmoBuddy',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: themeMode,
+          routes: {
+            '/settings': (_) => const SettingsPage(),
+          },
+          home: showOnboarding
+              ? const OnboardingScreen()
+              : const AuthGate(authenticatedBuilder: _buildMainShell),
+        );
+      },
     );
   }
 }
+
+Widget _buildMainShell(BuildContext context) => const MainShell();
 
 class CheckInPage extends StatefulWidget {
   const CheckInPage({super.key});
@@ -227,7 +192,7 @@ class _CheckInPageState extends State<CheckInPage> {
             icon: const Icon(Icons.history_outlined),
             tooltip: 'Mood history',
             onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const HistoryPage()),
+              MaterialPageRoute(builder: (_) => HistoryPage()),
             ),
           ),
           IconButton(
@@ -1090,218 +1055,3 @@ class _HotlineTile extends StatelessWidget {
   }
 }
 
-class HistoryPage extends StatefulWidget {
-  const HistoryPage({super.key});
-
-  @override
-  State<HistoryPage> createState() => _HistoryPageState();
-}
-
-class _HistoryPageState extends State<HistoryPage> {
-  final _service = MoodLogService();
-  List<Map<String, dynamic>> _logs = [];
-  bool _loading = true;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    try {
-      final logs = await _service.fetchMoodLogs();
-      setState(() {
-        _logs = logs;
-        _loading = false;
-        _error = null;
-      });
-    } catch (e) {
-      setState(() {
-        _error =
-            "Couldn't load your mood history. Check your connection and try again.";
-        _loading = false;
-      });
-    }
-  }
-
-  Future<void> _togglePlan(Map<String, dynamic> plan) async {
-    final completed = plan['completed_at'] != null;
-    final newCompleted = !completed;
-    try {
-      await _service.toggleSelfCare(plan['id'] as String, newCompleted);
-      setState(() {
-        plan['completed_at'] =
-            newCompleted ? DateTime.now().toIso8601String() : null;
-      });
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not update plan: $e')),
-        );
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Mood History')),
-      body: SafeArea(
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _error != null
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.error_outline,
-                            size: 48,
-                            color: Color(0xFF9BA5A8),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            _error!,
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyLarge
-                                ?.copyWith(color: const Color(0xFF6E787C)),
-                          ),
-                          const SizedBox(height: 16),
-                          FilledButton.icon(
-                            onPressed: _load,
-                            icon: const Icon(Icons.refresh),
-                            label: const Text('Try again'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                : _logs.isEmpty
-                    ? const _EmptyHistoryView()
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(20),
-                        itemCount: _logs.length,
-                        itemBuilder: (context, index) => _HistoryLogCard(
-                          log: _logs[index],
-                          onToggle: (plan) => unawaited(_togglePlan(plan)),
-                        ),
-                      ),
-      ),
-    );
-  }
-}
-
-class _EmptyHistoryView extends StatelessWidget {
-  const _EmptyHistoryView();
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.history, size: 56, color: Color(0xFF9BA5A8)),
-            const SizedBox(height: 16),
-            Text(
-              'No check-ins yet',
-              style: textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Your past moods and self-care plans will appear here.',
-              textAlign: TextAlign.center,
-              style: textTheme.bodyMedium?.copyWith(color: const Color(0xFF6E787C)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _HistoryLogCard extends StatelessWidget {
-  final Map<String, dynamic> log;
-  final void Function(Map<String, dynamic> plan) onToggle;
-
-  const _HistoryLogCard({required this.log, required this.onToggle});
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    final createdAt = DateTime.parse(log['created_at'] as String);
-    final date = '${createdAt.day}/${createdAt.month}/${createdAt.year}';
-    final time =
-        '${createdAt.hour.toString().padLeft(2, '0')}:${createdAt.minute.toString().padLeft(2, '0')}';
-    final mood = _MoodVisual.forLabel(log['fusion_result'] as String);
-    final plans = (log['self_care_plans'] as List<dynamic>? ?? [])
-        .cast<Map<String, dynamic>>();
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 22,
-                  backgroundColor: mood.color.withValues(alpha: 0.15),
-                  child: Icon(mood.icon, color: mood.color, size: 24),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        mood.label,
-                        style: textTheme.titleLarge?.copyWith(color: mood.color),
-                      ),
-                      Text(
-                        '$date at $time · ${((log['confidence'] as num).toDouble() * 100).toStringAsFixed(0)}% · ${log['source']}',
-                        style: textTheme.bodySmall
-                            ?.copyWith(color: const Color(0xFF6E787C)),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Self-care plan',
-              style: textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            ...plans.map(
-              (plan) => CheckboxListTile(
-                value: plan['completed_at'] != null,
-                onChanged: (_) => onToggle(plan),
-                title: Text(
-                  '${plan['day_index']}. ${plan['activity']}',
-                  style: textTheme.bodyMedium,
-                ),
-                contentPadding: EdgeInsets.zero,
-                controlAffinity: ListTileControlAffinity.leading,
-                activeColor: colorScheme.primary,
-                checkColor: colorScheme.onPrimary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

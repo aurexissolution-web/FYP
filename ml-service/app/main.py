@@ -1,11 +1,24 @@
+from pathlib import Path
+
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
 from .crisis import detect_crisis
 from .hotlines import get_crisis_message, get_hotlines
-from .inference import AudioPredictor, TextPredictor
+from .inference import AudioDecodeError, AudioPredictor, TextPredictor
+from .llm_chat import generate_chat_reply
 from .responses import get_response_message
-from .schemas import AnalyzeRequest, AnalyzeResponse, ModalityResult
+from .schemas import (
+    AnalyzeRequest,
+    AnalyzeResponse,
+    ChatReplyRequest,
+    ChatReplyResponse,
+    ConversationAnalyzeRequest,
+    ModalityResult,
+)
 from .selfcare import generate_plan
 
 app = FastAPI(title="EmoBuddy ML Service")
@@ -67,8 +80,8 @@ _HAPPY_LEXICON = {
     "ms": ["gembira", "seronok", "hebat", "menang", "syukur", "suka", "girang", "bahagia", "meriah", "senang", "lawak", "terbaik"],
 }
 _SAD_LEXICON = {
-    "en": ["sad", "lonely", "depressed", "upset", "crying", "heartbroken", "grief", "miss", "lost", "terrible", "awful", "not good", "worst", "disappointed"],
-    "ms": ["sedih", "kesunyian", "kecewa", "pilu", "sayu", "menangis", "dukacita", "susah", "murung", "teruk", "sedihnya"],
+    "en": ["sad", "lonely", "depressed", "upset", "crying", "heartbroken", "grief", "miss", "lost", "terrible", "awful", "not good", "worst", "disappointed", "stress", "stressed", "stressed out", "anxious", "anxiety", "overwhelmed", "worried", "worn out", "exhausted", "burnt out", "burned out", "tired", "pressure"],
+    "ms": ["sedih", "kesunyian", "kecewa", "pilu", "sayu", "menangis", "dukacita", "susah", "murung", "teruk", "sedihnya", "stres", "tertekan", "risau", "cemas", "penat", "letih", "keletihan"],
 }
 _ANGRY_LEXICON = {
     "en": ["angry", "furious", "mad", "annoyed", "frustrated", "hate", "pissed", "irritated", "livid", "rage"],
@@ -96,9 +109,7 @@ def _apply_lexicon(
 
     total = sum(counts.values())
     if total == 0:
-        return resultapply_lexicon(
-        payload.text, payload.nguage, _la)
-    
+        return result
 
     dominant = max(counts, key=counts.get)
     if counts[dominant] == 0 or result.label == dominant:
@@ -129,7 +140,10 @@ def analyze_text(payload: AnalyzeRequest) -> ModalityResult:
 def analyze_audio(payload: AnalyzeRequest) -> ModalityResult:
     if not payload.audio_base64:
         raise HTTPException(400, "audio_base64 is required")
-    return _audio_predictor.predict(payload.audio_base64)
+    try:
+        return _audio_predictor.predict(payload.audio_base64)
+    except AudioDecodeError as exc:
+        raise HTTPException(422, str(exc)) from exc
 
 
 @app.post("/analyze", response_model=AnalyzeResponse)
@@ -137,24 +151,33 @@ def analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
     if not payload.text and not payload.audio_base64:
         raise HTTPException(400, "Provide text and/or audio_base64")
 
-    if detect_crisis(payload.text):
+    return _run_analysis(payload.text, payload.audio_base64, payload.language)
+
+
+def _run_analysis(
+    text: str | None, audio_base64: str | None, language: str
+) -> AnalyzeResponse:
+    if detect_crisis(text):
         return AnalyzeResponse(
             text_result=None,
             audio_result=None,
             fusion_result=ModalityResult(label="sad", confidence=1.0),
             crisis=True,
-            response_message=get_crisis_message(payload.language),
+            response_message=get_crisis_message(language),
             self_care_plan=[],
-            hotlines=get_hotlines(payload.language),
+            hotlines=get_hotlines(language),
         )
 
-    text_result = _text_predictor.predict(payload.text) if payload.text else None
-    audio_result = _audio_predictor.predict(payload.audio_base64) if payload.audio_base64 else None
+    text_result = _text_predictor.predict(text) if text else None
+    try:
+        audio_result = _audio_predictor.predict(audio_base64) if audio_base64 else None
+    except AudioDecodeError as exc:
+        raise HTTPException(422, str(exc)) from exc
     fusion_result = _apply_lexicon(
-        payload.text, payload.language, _late_fusion(text_result, audio_result)
+        text, language, _late_fusion(text_result, audio_result)
     )
-    plan = generate_plan(fusion_result.label, payload.language)
-    response_message = get_response_message(fusion_result.label, payload.language)
+    plan = generate_plan(fusion_result.label, language)
+    response_message = get_response_message(fusion_result.label, language)
 
     return AnalyzeResponse(
         text_result=text_result,
@@ -163,4 +186,41 @@ def analyze(payload: AnalyzeRequest) -> AnalyzeResponse:
         crisis=False,
         response_message=response_message,
         self_care_plan=plan,
+    )
+
+
+@app.post("/chat/reply", response_model=ChatReplyResponse)
+def chat_reply(payload: ChatReplyRequest) -> ChatReplyResponse:
+    latest = payload.messages[-1]
+    if detect_crisis(latest):
+        return ChatReplyResponse(reply=get_crisis_message(payload.language), crisis=True)
+
+    try:
+        reply = generate_chat_reply(payload.messages, payload.language)
+    except Exception as exc:  # noqa: BLE001 - surface as a clean 502 to the client
+        raise HTTPException(502, f"Chat reply generation failed: {exc}") from exc
+
+    if not reply:
+        raise HTTPException(502, "Chat reply generation returned an empty response")
+
+    return ChatReplyResponse(reply=reply, crisis=False)
+
+
+@app.post("/analyze/conversation", response_model=AnalyzeResponse)
+def analyze_conversation(payload: ConversationAnalyzeRequest) -> AnalyzeResponse:
+    if not payload.messages:
+        raise HTTPException(400, "Provide at least one message")
+
+    full_text = "\n".join(payload.messages)
+    result = _run_analysis(full_text, None, payload.language)
+    summary = "Thanks for sharing all of that. "
+    if result.crisis:
+        return result
+    return AnalyzeResponse(
+        text_result=result.text_result,
+        audio_result=result.audio_result,
+        fusion_result=result.fusion_result,
+        crisis=False,
+        response_message=summary + result.response_message,
+        self_care_plan=result.self_care_plan,
     )

@@ -1,6 +1,10 @@
 # macOS
 .DS_Store
 
+# Environment variables / secrets
+.env
+ml-service/.env
+
 # Python virtual environment
 ml-service/.venv/
 
@@ -24,3 +28,6 @@ supabase/.temp/
 .dart_tool/
 build/
 *.iml
+
+# Editor/backup files
+*.bak

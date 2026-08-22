@@ -12,6 +12,21 @@ class AnalyzeRequest(BaseModel):
     language: Language = "en"
 
 
+class ConversationAnalyzeRequest(BaseModel):
+    messages: list[str] = Field(min_length=1)
+    language: Language = "en"
+
+
+class ChatReplyRequest(BaseModel):
+    messages: list[str] = Field(min_length=1)
+    language: Language = "en"
+
+
+class ChatReplyResponse(BaseModel):
+    reply: str
+    crisis: bool = False
+
+
 class ModalityResult(BaseModel):
     label: Emotion
     confidence: float = Field(ge=0.0, le=1.0)

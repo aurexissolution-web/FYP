@@ -14,6 +14,13 @@ const String kMlServiceBaseUrl = String.fromEnvironment(
   defaultValue: 'http://127.0.0.1:8123',
 );
 
+class ChatReply {
+  final String reply;
+  final bool crisis;
+
+  ChatReply({required this.reply, required this.crisis});
+}
+
 class AnalyzeApiException implements Exception {
   final String message;
   AnalyzeApiException(this.message);
@@ -30,6 +37,68 @@ class AnalyzeApi {
       : _client = client ?? http.Client();
 
   Future<AnalyzeResult> analyze({
+    String? text,
+    String? audioBase64,
+    String language = 'en',
+  }) async {
+    return _postAnalyze(text: text, audioBase64: audioBase64, language: language);
+  }
+
+  Future<AnalyzeResult> analyzeConversation({
+    required List<String> messages,
+    String language = 'en',
+  }) async {
+    final response = await _client
+        .post(
+          Uri.parse('$baseUrl/analyze/conversation'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'messages': messages,
+            'language': language,
+          }),
+        )
+        .timeout(const Duration(seconds: 15));
+
+    if (response.statusCode != 200) {
+      throw AnalyzeApiException(
+        'ml-service returned ${response.statusCode}: ${response.body}',
+      );
+    }
+
+    return AnalyzeResult.fromJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
+  }
+
+  Future<ChatReply> getChatReply({
+    required List<String> messages,
+    String language = 'en',
+  }) async {
+    final response = await _client
+        .post(
+          Uri.parse('$baseUrl/chat/reply'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'messages': messages,
+            'language': language,
+          }),
+        )
+        .timeout(const Duration(seconds: 20));
+
+    if (response.statusCode != 200) {
+      throw AnalyzeApiException(
+        'ml-service returned ${response.statusCode}: ${response.body}',
+      );
+    }
+
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    return ChatReply(
+      reply: json['reply'] as String,
+      crisis: json['crisis'] as bool? ?? false,
+    );
+  }
+
+  Future<AnalyzeResult> _postAnalyze({
     String? text,
     String? audioBase64,
     String language = 'en',

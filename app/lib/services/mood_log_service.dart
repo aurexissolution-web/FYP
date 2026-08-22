@@ -9,6 +9,7 @@ class MoodLogService {
     AnalyzeResult result, {
     required String source,
     required String language,
+    String? conversationText,
   }) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return;
@@ -23,6 +24,7 @@ class MoodLogService {
           'fusion_result': result.fusionResult.label,
           'confidence': result.fusionResult.confidence,
           'crisis_triggered': result.crisis,
+          'conversation_text': conversationText,
         })
         .select('id')
         .single();

@@ -1,4 +1,5 @@
 import base64
+import binascii
 import io
 import json
 import os
@@ -10,6 +11,10 @@ import torch
 
 from .emotion_models import AudioCNN, BiGRUClassifier
 from .schemas import ModalityResult
+
+
+class AudioDecodeError(ValueError):
+    """Raised when the provided audio clip can't be decoded/featurized."""
 
 _MODELS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "models")
 
@@ -100,8 +105,15 @@ class AudioPredictor:
         return np.stack([mfcc, delta, delta2]).astype(np.float32)
 
     def predict(self, audio_base64: str) -> ModalityResult:
-        audio_bytes = base64.b64decode(audio_base64)
-        features = self._extract_features(audio_bytes)
+        try:
+            audio_bytes = base64.b64decode(audio_base64, validate=True)
+        except (binascii.Error, ValueError) as exc:
+            raise AudioDecodeError(f"audio_base64 is not valid base64: {exc}") from exc
+
+        try:
+            features = self._extract_features(audio_bytes)
+        except Exception as exc:  # noqa: BLE001 - convert any decode failure into a clean error
+            raise AudioDecodeError(f"Could not decode the audio clip: {exc}") from exc
         features = (features - self.mean) / self.std
         with torch.no_grad():
             x = torch.from_numpy(features).unsqueeze(0).float().to(self.device)
