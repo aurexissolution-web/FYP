@@ -9,6 +9,7 @@ import 'models/analyze_result.dart';
 import 'pages/history_page.dart';
 import 'pages/main_shell.dart';
 import 'pages/onboarding_screen.dart';
+import 'pages/privacy_consent_screen.dart';
 import 'pages/settings_page.dart';
 import 'services/analyze_api.dart';
 import 'services/audio_recorder_service.dart';
@@ -28,6 +29,8 @@ Future<void> main() async {
   await loadEmoBuddyThemeMode();
   final prefs = await SharedPreferences.getInstance();
   final hasSeenOnboarding = prefs.getBool('has_seen_onboarding') ?? false;
+  final hasAcceptedPrivacyConsent =
+      prefs.getBool('has_accepted_privacy_consent') ?? false;
 
   try {
     await NotificationService.initialize();
@@ -53,13 +56,21 @@ Future<void> main() async {
     );
     return;
   }
-  runApp(EmoBuddyApp(showOnboarding: !hasSeenOnboarding));
+  runApp(EmoBuddyApp(
+    showOnboarding: !hasSeenOnboarding,
+    showPrivacyConsent: !hasAcceptedPrivacyConsent,
+  ));
 }
 
 class EmoBuddyApp extends StatelessWidget {
   final bool showOnboarding;
+  final bool showPrivacyConsent;
 
-  const EmoBuddyApp({super.key, required this.showOnboarding});
+  const EmoBuddyApp({
+    super.key,
+    required this.showOnboarding,
+    required this.showPrivacyConsent,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -77,7 +88,9 @@ class EmoBuddyApp extends StatelessWidget {
           },
           home: showOnboarding
               ? const OnboardingScreen()
-              : const AuthGate(authenticatedBuilder: _buildMainShell),
+              : showPrivacyConsent
+                  ? const PrivacyConsentScreen()
+                  : const AuthGate(authenticatedBuilder: _buildMainShell),
         );
       },
     );

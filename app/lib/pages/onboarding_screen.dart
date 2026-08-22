@@ -2,7 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../auth/auth_gate.dart';
-import 'main_shell.dart';
+import '../pages/main_shell.dart';
+import '../pages/privacy_consent_screen.dart';
+import '../widgets/logo_hero.dart';
+
+const _onboardingKey = 'has_seen_onboarding';
+const _languageKey = 'app_language';
+
+const _languages = [
+  ('en', 'English'),
+  ('ms', 'Bahasa Melayu'),
+];
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -11,31 +21,49 @@ class OnboardingScreen extends StatefulWidget {
   State<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-const _onboardingKey = 'has_seen_onboarding';
-
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final _controller = PageController();
   int _index = 0;
-  final _pages = const [
+  String _language = 'en';
+
+  late final _pages = [
     _OnboardingPage(
-      emoji: '🤗',
-      title: 'Meet EmoBuddy',
-      body:
-          'A safe, friendly space to talk about how you feel — by text or voice.',
+      language: _language,
+      emoji: '👋',
+      titleKey: 'welcome',
+      bodyKey: 'welcomeBody',
     ),
     _OnboardingPage(
-      emoji: '🔒',
-      title: 'Your privacy matters',
-      body:
-          'What you share is kept private. EmoBuddy is here to listen, not judge.',
+      language: _language,
+      emoji: '🗣️',
+      titleKey: 'talk',
+      bodyKey: 'talkBody',
     ),
     _OnboardingPage(
+      language: _language,
       emoji: '✨',
-      title: 'How it works',
-      body:
-          'Chat or record a voice note, then get a small 3-day self-care plan made for you.',
+      titleKey: 'plan',
+      bodyKey: 'planBody',
     ),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLanguage();
+  }
+
+  Future<void> _loadLanguage() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString(_languageKey) ?? 'en';
+    if (mounted) setState(() => _language = saved);
+  }
+
+  Future<void> _setLanguage(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_languageKey, value);
+    setState(() => _language = value);
+  }
 
   Future<void> _finish() async {
     final prefs = await SharedPreferences.getInstance();
@@ -43,9 +71,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (_) => AuthGate(
-          authenticatedBuilder: (context) => const MainShell(),
-        ),
+        builder: (_) => const PrivacyConsentScreen(),
       ),
     );
   }
@@ -61,9 +87,31 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
   }
 
+  String _t(String key) {
+    return switch (key) {
+      'welcome' => _language == 'ms' ? 'Selamat datang ke EmoBuddy' : 'Welcome to EmoBuddy',
+      'welcomeBody' => _language == 'ms'
+          ? 'Ruang selamat dan mesra untuk berkongsi perasaan anda — menerusi teks atau suara.'
+          : 'A safe, friendly space to talk about how you feel — by text or voice.',
+      'talk' => _language == 'ms' ? 'Bercakap atau rakam' : 'Talk or record',
+      'talkBody' => _language == 'ms'
+          ? 'Taip mesej pendek atau rakam nota suara. EmoBuddy akan mendengar.'
+          : 'Type a short message or record a voice note. EmoBuddy is here to listen.',
+      'plan' => _language == 'ms' ? 'Dapatkan pelan 3 hari' : 'Get a 3-day plan',
+      'planBody' => _language == 'ms'
+          ? 'Selepas perbualan, terima cadangan penjagaan diri kecil yang disesuaikan untuk anda.'
+          : 'After chatting, get a small self-care plan tailored just for you.',
+      'next' => _language == 'ms' ? 'Seterusnya' : 'Next',
+      'getStarted' => _language == 'ms' ? 'Mula' : 'Get started',
+      'skip' => _language == 'ms' ? 'Langkau' : 'Skip',
+      _ => key,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -72,12 +120,30 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
           child: Column(
             children: [
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: _finish,
-                  child: const Text('Skip'),
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextButton(
+                    onPressed: _finish,
+                    child: Text(_t('skip')),
+                  ),
+                  DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _language,
+                      icon: const Icon(Icons.language_rounded, size: 18),
+                      borderRadius: BorderRadius.circular(12),
+                      items: _languages.map((entry) {
+                        return DropdownMenuItem<String>(
+                          value: entry.$1,
+                          child: Text(entry.$2),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value != null) _setLanguage(value);
+                      },
+                    ),
+                  ),
+                ],
               ),
               Expanded(
                 child: PageView.builder(
@@ -99,7 +165,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     decoration: BoxDecoration(
                       color: i == _index
                           ? colorScheme.primary
-                          : colorScheme.outline.withOpacity(0.35),
+                          : colorScheme.outline.withValues(alpha: 0.35),
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -110,7 +176,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: _next,
-                  child: Text(_index == _pages.length - 1 ? 'Get started' : 'Next'),
+                  child: Text(
+                    _index == _pages.length - 1 ? _t('getStarted') : _t('next'),
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
@@ -123,15 +191,35 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 }
 
 class _OnboardingPage extends StatelessWidget {
+  final String language;
   final String emoji;
-  final String title;
-  final String body;
+  final String titleKey;
+  final String bodyKey;
 
   const _OnboardingPage({
+    required this.language,
     required this.emoji,
-    required this.title,
-    required this.body,
+    required this.titleKey,
+    required this.bodyKey,
   });
+
+  String _t(String key) {
+    return switch (key) {
+      'welcome' => language == 'ms' ? 'Selamat datang ke EmoBuddy' : 'Welcome to EmoBuddy',
+      'welcomeBody' => language == 'ms'
+          ? 'Ruang selamat dan mesra untuk berkongsi perasaan anda — menerusi teks atau suara.'
+          : 'A safe, friendly space to talk about how you feel — by text or voice.',
+      'talk' => language == 'ms' ? 'Bercakap atau rakam' : 'Talk or record',
+      'talkBody' => language == 'ms'
+          ? 'Taip mesej pendek atau rakam nota suara. EmoBuddy akan mendengar.'
+          : 'Type a short message or record a voice note. EmoBuddy is here to listen.',
+      'plan' => language == 'ms' ? 'Dapatkan pelan 3 hari' : 'Get a 3-day plan',
+      'planBody' => language == 'ms'
+          ? 'Selepas perbualan, terima cadangan penjagaan diri kecil yang disesuaikan untuk anda.'
+          : 'After chatting, get a small self-care plan tailored just for you.',
+      _ => key,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -143,9 +231,11 @@ class _OnboardingPage extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          const LogoHero(size: 120),
+          const SizedBox(height: 40),
           Container(
-            width: 120,
-            height: 120,
+            width: 80,
+            height: 80,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
@@ -158,26 +248,26 @@ class _OnboardingPage extends StatelessWidget {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: colorScheme.shadow.withOpacity(0.1),
+                  color: colorScheme.shadow.withValues(alpha: 0.1),
                   blurRadius: 20,
                   offset: const Offset(0, 8),
                 ),
               ],
             ),
             alignment: Alignment.center,
-            child: Text(emoji, style: const TextStyle(fontSize: 56)),
+            child: Text(emoji, style: const TextStyle(fontSize: 40)),
           ),
           const SizedBox(height: 40),
           Text(
-            title,
-            style: textTheme.headlineSmall,
+            _t(titleKey),
+            style: textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 14),
           Text(
-            body,
+            _t(bodyKey),
             style: textTheme.bodyLarge?.copyWith(
-                  color: colorScheme.onSurface.withOpacity(0.7),
+                  color: colorScheme.onSurface.withValues(alpha: 0.7),
                   height: 1.55,
                 ),
             textAlign: TextAlign.center,
