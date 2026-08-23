@@ -32,34 +32,23 @@ Future<void> main() async {
   final hasAcceptedPrivacyConsent =
       prefs.getBool('has_accepted_privacy_consent') ?? false;
 
-  try {
-    await NotificationService.initialize();
-  } catch (e, st) {
-    debugPrint('Supabase.initialize failed: $e');
-    debugPrint(st.toString());
-    runApp(
-      MaterialApp(
-        home: Scaffold(
-          body: SafeArea(
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  'Could not initialize EmoBuddy.\n\n$e',
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-    return;
-  }
   runApp(EmoBuddyApp(
     showOnboarding: !hasSeenOnboarding,
     showPrivacyConsent: !hasAcceptedPrivacyConsent,
   ));
+
+  _initializeNotifications();
+}
+
+void _initializeNotifications() {
+  NotificationService.initialize()
+      .timeout(const Duration(seconds: 5))
+      .then((_) => debugPrint('NotificationService initialized'))
+      .catchError((Object e, StackTrace st) {
+    debugPrint('NotificationService.initialize failed: $e');
+    debugPrint(st.toString());
+    return null;
+  });
 }
 
 class EmoBuddyApp extends StatelessWidget {
