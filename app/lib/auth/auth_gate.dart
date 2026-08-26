@@ -6,8 +6,13 @@ import 'sign_in_page.dart';
 
 class AuthGate extends StatelessWidget {
   final Widget Function(BuildContext context) authenticatedBuilder;
+  final Widget Function(BuildContext context)? unauthenticatedBuilder;
 
-  const AuthGate({super.key, required this.authenticatedBuilder});
+  const AuthGate({
+    super.key,
+    required this.authenticatedBuilder,
+    this.unauthenticatedBuilder,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +23,7 @@ class AuthGate extends StatelessWidget {
         if (session != null) {
           return BiometricGuard(child: authenticatedBuilder(context));
         }
-        return const SignInPage();
+        return unauthenticatedBuilder?.call(context) ?? const SignInPage();
       },
     );
   }

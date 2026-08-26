@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -7,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'auth/auth_gate.dart';
 import 'models/analyze_result.dart';
 import 'pages/history_page.dart';
+import 'pages/landing_page.dart';
 import 'pages/main_shell.dart';
 import 'pages/onboarding_screen.dart';
 import 'pages/privacy_consent_screen.dart';
@@ -24,7 +26,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Supabase.initialize(
     url: kSupabaseUrl,
-    anonKey: kSupabaseAnonKey,
+    publishableKey: kSupabaseAnonKey,
   );
   await loadEmoBuddyThemeMode();
   final prefs = await SharedPreferences.getInstance();
@@ -32,10 +34,12 @@ Future<void> main() async {
   final hasAcceptedPrivacyConsent =
       prefs.getBool('has_accepted_privacy_consent') ?? false;
 
-  runApp(EmoBuddyApp(
-    showOnboarding: !hasSeenOnboarding,
-    showPrivacyConsent: !hasAcceptedPrivacyConsent,
-  ));
+  runApp(
+    EmoBuddyApp(
+      showOnboarding: !hasSeenOnboarding,
+      showPrivacyConsent: !hasAcceptedPrivacyConsent,
+    ),
+  );
 
   _initializeNotifications();
 }
@@ -45,10 +49,10 @@ void _initializeNotifications() {
       .timeout(const Duration(seconds: 5))
       .then((_) => debugPrint('NotificationService initialized'))
       .catchError((Object e, StackTrace st) {
-    debugPrint('NotificationService.initialize failed: $e');
-    debugPrint(st.toString());
-    return null;
-  });
+        debugPrint('NotificationService.initialize failed: $e');
+        debugPrint(st.toString());
+        return null;
+      });
 }
 
 class EmoBuddyApp extends StatelessWidget {
@@ -72,14 +76,17 @@ class EmoBuddyApp extends StatelessWidget {
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: themeMode,
-          routes: {
-            '/settings': (_) => const SettingsPage(),
-          },
-          home: showOnboarding
+          routes: {'/settings': (_) => const SettingsPage()},
+          home: kIsWeb
+              ? const AuthGate(
+                  authenticatedBuilder: _buildMainShell,
+                  unauthenticatedBuilder: _buildLandingPage,
+                )
+              : showOnboarding
               ? const OnboardingScreen()
               : showPrivacyConsent
-                  ? const PrivacyConsentScreen()
-                  : const AuthGate(authenticatedBuilder: _buildMainShell),
+              ? const PrivacyConsentScreen()
+              : const AuthGate(authenticatedBuilder: _buildMainShell),
         );
       },
     );
@@ -87,6 +94,7 @@ class EmoBuddyApp extends StatelessWidget {
 }
 
 Widget _buildMainShell(BuildContext context) => const MainShell();
+Widget _buildLandingPage(BuildContext context) => const LandingPage();
 
 class CheckInPage extends StatefulWidget {
   const CheckInPage({super.key});
@@ -192,9 +200,9 @@ class _CheckInPageState extends State<CheckInPage> {
           IconButton(
             icon: const Icon(Icons.history_outlined),
             tooltip: 'Mood history',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => HistoryPage()),
-            ),
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => HistoryPage())),
           ),
           IconButton(
             icon: const Icon(Icons.logout_outlined),
@@ -257,9 +265,11 @@ class _CheckInPageState extends State<CheckInPage> {
                         AnimatedSwitcher(
                           duration: const Duration(milliseconds: 400),
                           child: _ResultView(
-                            key: ValueKey(_result!.crisis
-                                ? 'crisis'
-                                : _result!.fusionResult.label),
+                            key: ValueKey(
+                              _result!.crisis
+                                  ? 'crisis'
+                                  : _result!.fusionResult.label,
+                            ),
                             result: _result!,
                           ),
                         )
@@ -352,8 +362,8 @@ class _GreetingHeader extends StatelessWidget {
                   Text(
                     'Welcome back,',
                     style: textTheme.bodyMedium?.copyWith(
-                          color: const Color(0xFF6E787C),
-                        ),
+                      color: const Color(0xFF6E787C),
+                    ),
                   ),
                   Text(
                     firstName,
@@ -366,18 +376,15 @@ class _GreetingHeader extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 24),
-        Text(
-          'How are you feeling right now?',
-          style: textTheme.titleLarge,
-        ),
+        Text('How are you feeling right now?', style: textTheme.titleLarge),
         const SizedBox(height: 8),
         Text(
           'Share a few words or record a short voice note. '
           'EmoBuddy will listen and suggest small, caring steps.',
           style: textTheme.bodyMedium?.copyWith(
-                color: const Color(0xFF6E787C),
-                height: 1.5,
-              ),
+            color: const Color(0xFF6E787C),
+            height: 1.5,
+          ),
         ),
       ],
     );
@@ -503,7 +510,10 @@ class _VoiceRecorderControlState extends State<_VoiceRecorderControl> {
       return Card(
         color: colorScheme.primaryContainer.withValues(alpha: 0.25),
         child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 6,
+          ),
           leading: CircleAvatar(
             backgroundColor: colorScheme.primary,
             child: const Icon(Icons.mic, color: Colors.white, size: 18),
@@ -591,7 +601,9 @@ class _EmptyResultCard extends StatelessWidget {
             Icon(
               Icons.spa,
               size: 48,
-              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.45),
+              color: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.45),
             ),
             const SizedBox(height: 16),
             Text(
@@ -603,7 +615,9 @@ class _EmptyResultCard extends StatelessWidget {
             Text(
               'Take a breath, then share what is on your mind.',
               textAlign: TextAlign.center,
-              style: textTheme.bodyMedium?.copyWith(color: const Color(0xFF6E787C)),
+              style: textTheme.bodyMedium?.copyWith(
+                color: const Color(0xFF6E787C),
+              ),
             ),
           ],
         ),
@@ -629,14 +643,13 @@ class _LoadingResultCard extends StatelessWidget {
               child: CircularProgressIndicator(strokeWidth: 2.5),
             ),
             const SizedBox(height: 20),
-            Text(
-              'Analyzing your check-in...',
-              style: textTheme.titleLarge,
-            ),
+            Text('Analyzing your check-in...', style: textTheme.titleLarge),
             const SizedBox(height: 8),
             Text(
               'This only takes a moment.',
-              style: textTheme.bodyMedium?.copyWith(color: const Color(0xFF6E787C)),
+              style: textTheme.bodyMedium?.copyWith(
+                color: const Color(0xFF6E787C),
+              ),
             ),
           ],
         ),
@@ -663,12 +676,19 @@ class _ErrorBanner extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.error_outline, color: colorScheme.onErrorContainer, size: 20),
+          Icon(
+            Icons.error_outline,
+            color: colorScheme.onErrorContainer,
+            size: 20,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               message,
-              style: TextStyle(color: colorScheme.onErrorContainer, height: 1.4),
+              style: TextStyle(
+                color: colorScheme.onErrorContainer,
+                height: 1.4,
+              ),
             ),
           ),
         ],
@@ -695,12 +715,19 @@ class _InfoBanner extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline, color: colorScheme.onPrimaryContainer, size: 20),
+          Icon(
+            Icons.info_outline,
+            color: colorScheme.onPrimaryContainer,
+            size: 20,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               message,
-              style: TextStyle(color: colorScheme.onPrimaryContainer, height: 1.4),
+              style: TextStyle(
+                color: colorScheme.onPrimaryContainer,
+                height: 1.4,
+              ),
             ),
           ),
         ],
@@ -776,20 +803,14 @@ class _ResultView extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'What we noticed',
-                  style: textTheme.titleLarge,
-                ),
+                Text('What we noticed', style: textTheme.titleLarge),
                 const SizedBox(height: 12),
                 Text(
                   result.responseMessage,
                   style: textTheme.bodyLarge?.copyWith(height: 1.6),
                 ),
                 const SizedBox(height: 24),
-                Text(
-                  'Your 3-day self-care plan',
-                  style: textTheme.titleLarge,
-                ),
+                Text('Your 3-day self-care plan', style: textTheme.titleLarge),
                 const SizedBox(height: 14),
                 ...result.selfCarePlan.map(
                   (item) => _SelfCareItem(item: item, colorScheme: colorScheme),
@@ -843,7 +864,9 @@ class _MoodBadge extends StatelessWidget {
               children: [
                 Text(
                   'Detected mood',
-                  style: textTheme.bodySmall?.copyWith(color: const Color(0xFF6E787C)),
+                  style: textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFF6E787C),
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -853,7 +876,9 @@ class _MoodBadge extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   '${(confidence * 100).toStringAsFixed(0)}% confidence',
-                  style: textTheme.bodyMedium?.copyWith(color: const Color(0xFF6E787C)),
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: const Color(0xFF6E787C),
+                  ),
                 ),
               ],
             ),
@@ -889,9 +914,9 @@ class _SelfCareItem extends StatelessWidget {
               child: Text(
                 '${item.day}',
                 style: textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: colorScheme.onPrimaryContainer,
-                    ),
+                  fontWeight: FontWeight.w700,
+                  color: colorScheme.onPrimaryContainer,
+                ),
               ),
             ),
           ),
@@ -933,21 +958,28 @@ class _CrisisView extends StatelessWidget {
           decoration: BoxDecoration(
             color: colorScheme.errorContainer,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: colorScheme.error.withValues(alpha: 0.25), width: 1.5),
+            border: Border.all(
+              color: colorScheme.error.withValues(alpha: 0.25),
+              width: 1.5,
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Icon(Icons.warning_amber_rounded,
-                      color: colorScheme.onErrorContainer, size: 28),
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    color: colorScheme.onErrorContainer,
+                    size: 28,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'You are not alone',
-                      style: textTheme.headlineSmall
-                          ?.copyWith(color: colorScheme.onErrorContainer),
+                      style: textTheme.headlineSmall?.copyWith(
+                        color: colorScheme.onErrorContainer,
+                      ),
                     ),
                   ),
                 ],
@@ -956,15 +988,16 @@ class _CrisisView extends StatelessWidget {
               Text(
                 result.responseMessage,
                 style: textTheme.bodyLarge?.copyWith(
-                      color: colorScheme.onErrorContainer,
-                      height: 1.55,
-                    ),
+                  color: colorScheme.onErrorContainer,
+                  height: 1.55,
+                ),
               ),
               const SizedBox(height: 20),
               Text(
                 'Please reach out now:',
-                style: textTheme.titleLarge
-                    ?.copyWith(color: colorScheme.onErrorContainer),
+                style: textTheme.titleLarge?.copyWith(
+                  color: colorScheme.onErrorContainer,
+                ),
               ),
               const SizedBox(height: 12),
               ...result.hotlines.map(
@@ -987,7 +1020,8 @@ class _CrisisView extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
                   ...result.selfCarePlan.map(
-                    (item) => _SelfCareItem(item: item, colorScheme: colorScheme),
+                    (item) =>
+                        _SelfCareItem(item: item, colorScheme: colorScheme),
                   ),
                 ],
               ),
@@ -1026,25 +1060,26 @@ class _HotlineTile extends StatelessWidget {
                 Text(
                   hotline.name,
                   style: textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: colorScheme.onError,
-                      ),
+                    fontWeight: FontWeight.w700,
+                    color: colorScheme.onError,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   hotline.phone,
                   style: textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: colorScheme.onError,
-                      ),
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.onError,
+                  ),
                 ),
                 if (hotline.description.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
                       hotline.description,
-                      style: textTheme.bodySmall
-                          ?.copyWith(color: colorScheme.onError.withValues(alpha: 0.85)),
+                      style: textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onError.withValues(alpha: 0.85),
+                      ),
                     ),
                   ),
               ],
@@ -1055,4 +1090,3 @@ class _HotlineTile extends StatelessWidget {
     );
   }
 }
-

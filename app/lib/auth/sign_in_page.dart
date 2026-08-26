@@ -3,7 +3,6 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../pages/confirm_email_page.dart';
 import '../pages/forgot_password_page.dart';
@@ -12,7 +11,9 @@ import '../widgets/logo_hero.dart';
 enum _AuthMode { welcome, form }
 
 class SignInPage extends StatefulWidget {
-  const SignInPage({super.key});
+  final bool initialSignUp;
+
+  const SignInPage({super.key, this.initialSignUp = false});
 
   @override
   State<SignInPage> createState() => _SignInPageState();
@@ -25,7 +26,7 @@ class _SignInPageState extends State<SignInPage> {
   final _confirmPasswordController = TextEditingController();
 
   _AuthMode _mode = _AuthMode.welcome;
-  bool _isSignUp = false;
+  late bool _isSignUp;
   bool _loading = false;
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
@@ -33,6 +34,13 @@ class _SignInPageState extends State<SignInPage> {
   String? _info;
 
   static final _emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
+
+  @override
+  void initState() {
+    super.initState();
+    _isSignUp = widget.initialSignUp;
+    if (widget.initialSignUp) _mode = _AuthMode.form;
+  }
 
   Future<void> _submit() async {
     final isValid = _formKey.currentState?.validate() ?? false;
@@ -50,15 +58,10 @@ class _SignInPageState extends State<SignInPage> {
     try {
       final auth = Supabase.instance.client.auth;
       if (_isSignUp) {
-        await auth.signUp(
-          email: email,
-          password: password,
-        );
+        await auth.signUp(email: email, password: password);
         if (!mounted) return;
         Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => ConfirmEmailPage(email: email),
-          ),
+          MaterialPageRoute(builder: (_) => ConfirmEmailPage(email: email)),
         );
       } else {
         await auth.signInWithPassword(email: email, password: password);
@@ -103,7 +106,9 @@ class _SignInPageState extends State<SignInPage> {
 
   String? _emailValidator(String? value) {
     if (value == null || value.trim().isEmpty) return 'Email is required.';
-    if (!_emailRegex.hasMatch(value.trim())) return 'Please enter a valid email.';
+    if (!_emailRegex.hasMatch(value.trim())) {
+      return 'Please enter a valid email.';
+    }
     return null;
   }
 
@@ -140,10 +145,7 @@ class _SignInPageState extends State<SignInPage> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF5B8BD8),
-              Color(0xFF7FB9B4),
-            ],
+            colors: [Color(0xFF5B8BD8), Color(0xFF7FB9B4)],
           ),
         ),
         child: SafeArea(
@@ -189,11 +191,7 @@ class _SignInPageState extends State<SignInPage> {
         const Text(
           'A quiet space to check in with yourself.',
           textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Colors.white70,
-            fontSize: 16,
-            height: 1.4,
-          ),
+          style: TextStyle(color: Colors.white70, fontSize: 16, height: 1.4),
         ),
         const Spacer(flex: 3),
         _glassButton(
@@ -293,11 +291,14 @@ class _SignInPageState extends State<SignInPage> {
                   color: Colors.white70,
                   size: 20,
                 ),
-                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                onPressed: () =>
+                    setState(() => _obscurePassword = !_obscurePassword),
               ),
               validator: _passwordValidator,
               autofillHints: const [AutofillHints.password],
-              textInputAction: _isSignUp ? TextInputAction.next : TextInputAction.done,
+              textInputAction: _isSignUp
+                  ? TextInputAction.next
+                  : TextInputAction.done,
               onFieldSubmitted: _isSignUp ? null : (_) => _submit(),
             ),
             if (_isSignUp) ...[
@@ -316,7 +317,8 @@ class _SignInPageState extends State<SignInPage> {
                     color: Colors.white70,
                     size: 20,
                   ),
-                  onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                  onPressed: () =>
+                      setState(() => _obscureConfirm = !_obscureConfirm),
                 ),
                 validator: _confirmPasswordValidator,
                 textInputAction: TextInputAction.done,
@@ -353,7 +355,9 @@ class _SignInPageState extends State<SignInPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  _isSignUp ? 'Already have an account?' : "Don't have an account?",
+                  _isSignUp
+                      ? 'Already have an account?'
+                      : "Don't have an account?",
                   style: const TextStyle(color: Colors.white70),
                 ),
                 TextButton(
@@ -377,7 +381,10 @@ class _SignInPageState extends State<SignInPage> {
                 Expanded(child: Divider(color: Colors.white38)),
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: 12),
-                  child: Text('or continue with', style: TextStyle(color: Colors.white70)),
+                  child: Text(
+                    'or continue with',
+                    style: TextStyle(color: Colors.white70),
+                  ),
                 ),
                 Expanded(child: Divider(color: Colors.white38)),
               ],
@@ -477,10 +484,7 @@ class _SignInPageState extends State<SignInPage> {
                   ),
                 ),
                 SizedBox(width: 10),
-                Text(
-                  'Please wait...',
-                  style: TextStyle(color: Colors.white),
-                ),
+                Text('Please wait...', style: TextStyle(color: Colors.white)),
               ],
             )
           : Text(
@@ -539,15 +543,20 @@ class _SignInPageState extends State<SignInPage> {
           borderRadius: BorderRadius.circular(18),
           borderSide: BorderSide(color: Colors.red.shade200, width: 1.5),
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 18,
+        ),
         prefixIcon: Icon(icon, color: Colors.white70),
         suffixIcon: suffix,
         labelText: label,
         labelStyle: const TextStyle(color: Colors.white70),
         hintText: hint,
         hintStyle: const TextStyle(color: Colors.white38),
-        errorStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        errorStyle: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -568,10 +577,7 @@ class _SignInPageState extends State<SignInPage> {
         children: [
           Icon(icon, color: Colors.white),
           const SizedBox(width: 10),
-          Text(
-            label,
-            style: const TextStyle(color: Colors.white),
-          ),
+          Text(label, style: const TextStyle(color: Colors.white)),
         ],
       ),
     );
@@ -626,7 +632,9 @@ class _PasswordStrengthIndicator extends StatelessWidget {
     if (password.length >= 8) score++;
     if (password.contains(RegExp(r'[A-Z]'))) score++;
     if (password.contains(RegExp(r'[0-9]'))) score++;
-    if (password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>_\-\[\]\\\/]'))) score++;
+    if (password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>_\-\[\]\\\/]'))) {
+      score++;
+    }
     return score;
   }
 
