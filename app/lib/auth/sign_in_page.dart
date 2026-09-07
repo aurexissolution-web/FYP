@@ -6,7 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../pages/confirm_email_page.dart';
 import '../pages/forgot_password_page.dart';
-import '../widgets/logo_hero.dart';
+import '../widgets/breathing_background.dart';
 
 enum _AuthMode { welcome, form }
 
@@ -140,14 +140,7 @@ class _SignInPageState extends State<SignInPage> {
     return Scaffold(
       backgroundColor: const Color(0xFF4A7DBA),
       resizeToAvoidBottomInset: true,
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF5B8BD8), Color(0xFF7FB9B4)],
-          ),
-        ),
+      body: BreathingBackground(
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
@@ -174,51 +167,98 @@ class _SignInPageState extends State<SignInPage> {
       key: const ValueKey('welcome'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Spacer(flex: 2),
-        const Center(child: LogoHero(size: 160)),
-        const SizedBox(height: 28),
-        const Text(
-          'EmoBuddy',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 32,
-            fontWeight: FontWeight.w800,
-            color: Colors.white,
-            letterSpacing: 0.5,
-          ),
-        ),
-        const SizedBox(height: 10),
-        const Text(
-          'A quiet space to check in with yourself.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.white70, fontSize: 16, height: 1.4),
-        ),
         const Spacer(flex: 3),
-        _glassButton(
-          onPressed: () => _setMode(_AuthMode.form, isSignUp: false),
-          child: const Text(
-            'SIGN IN',
+        const FadeInUp(child: Center(child: BreathingLogo(size: 150))),
+        const SizedBox(height: 12),
+        const FadeInUp(
+          delay: Duration(milliseconds: 160),
+          child: Text(
+            'EmoBuddy',
+            textAlign: TextAlign.center,
             style: TextStyle(
+              fontSize: 34,
+              fontWeight: FontWeight.w800,
               color: Colors.white,
-              letterSpacing: 1.5,
-              fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
             ),
           ),
         ),
-        const SizedBox(height: 16),
-        _glassButton(
-          onPressed: () => _setMode(_AuthMode.form, isSignUp: true),
-          child: const Text(
-            'CREATE ACCOUNT',
-            style: TextStyle(
-              color: Colors.white,
-              letterSpacing: 1.5,
-              fontWeight: FontWeight.w600,
+        const SizedBox(height: 10),
+        const FadeInUp(
+          delay: Duration(milliseconds: 280),
+          child: Text(
+            'A quiet space to check in with yourself.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.white70, fontSize: 16, height: 1.4),
+          ),
+        ),
+        const SizedBox(height: 28),
+        const FadeInUp(
+          delay: Duration(milliseconds: 400),
+          child: Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _FeatureChip(icon: Icons.graphic_eq_rounded, label: 'Voice & text'),
+              _FeatureChip(icon: Icons.translate_rounded, label: 'English & BM'),
+              _FeatureChip(icon: Icons.lock_outline_rounded, label: 'Private'),
+            ],
+          ),
+        ),
+        const Spacer(flex: 4),
+        FadeInUp(
+          delay: const Duration(milliseconds: 520),
+          child: _primaryButton(
+            onPressed: () => _setMode(_AuthMode.form, isSignUp: true),
+            label: 'CREATE ACCOUNT',
+          ),
+        ),
+        const SizedBox(height: 14),
+        FadeInUp(
+          delay: const Duration(milliseconds: 620),
+          child: _glassButton(
+            onPressed: () => _setMode(_AuthMode.form, isSignUp: false),
+            child: const Text(
+              'SIGN IN',
+              style: TextStyle(
+                color: Colors.white,
+                letterSpacing: 1.5,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ),
         const SizedBox(height: 24),
       ],
+    );
+  }
+
+  Widget _primaryButton({
+    required VoidCallback onPressed,
+    required String label,
+  }) {
+    return SizedBox(
+      height: 56,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.white,
+          foregroundColor: const Color(0xFF3F6FA8),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(28),
+          ),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            letterSpacing: 1.5,
+            fontWeight: FontWeight.w700,
+            fontSize: 15,
+          ),
+        ),
+      ),
     );
   }
 
@@ -676,6 +716,40 @@ class _PasswordStrengthIndicator extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _FeatureChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _FeatureChip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: Colors.white.withValues(alpha: 0.9)),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.92),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

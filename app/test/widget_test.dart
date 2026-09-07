@@ -52,7 +52,10 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: LandingPage()));
 
     await tester.tap(find.text('Sign Up'));
-    await tester.pumpAndSettle();
+    // The auth screen's breathing background loops forever by design, so
+    // pumpAndSettle would never return — pump past the transition instead.
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
 
     expect(find.text('Create an account'), findsOneWidget);
     expect(find.text('SIGN UP'), findsOneWidget);
