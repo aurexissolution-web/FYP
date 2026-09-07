@@ -12,6 +12,10 @@ import torch
 from .emotion_models import AudioCNN, BiGRUClassifier
 from .schemas import ModalityResult
 
+# These models are tiny and inference is single-request; torch's default thread
+# pool just thrashes on the fractional-vCPU instances this deploys to.
+torch.set_num_threads(1)
+
 
 class AudioDecodeError(ValueError):
     """Raised when the provided audio clip can't be decoded/featurized."""
