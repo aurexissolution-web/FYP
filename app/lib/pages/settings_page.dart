@@ -33,10 +33,19 @@ class SettingsPage extends StatelessWidget {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('has_seen_onboarding', false);
     await Supabase.instance.client.auth.signOut();
+    if (!context.mounted) return;
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   Future<void> _signOut(BuildContext context) async {
     await Supabase.instance.client.auth.signOut();
+    if (!context.mounted) return;
+    // This page is reached via Navigator.pushNamed('/settings'), stacked on
+    // top of AuthGate's home route. AuthGate reacts to onAuthStateChange and
+    // swaps its content to the sign-in screen, but that swap happens on the
+    // route underneath — invisible while this pushed route stays on top. Pop
+    // back to root so the sign-in screen AuthGate just swapped in is shown.
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   @override
