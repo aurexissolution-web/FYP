@@ -13,9 +13,14 @@ export default async function ResetPasswordPage({
   const dict = await getDictionary(lang);
 
   return (
-    <div>
-      <h1>{dict.auth.resetTitle}</h1>
-      <p>{dict.auth.resetSubtitle}</p>
+    <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-3xl font-extrabold tracking-tight text-ink">
+          {dict.auth.resetTitle}
+        </h1>
+        <p className="text-ink-soft">{dict.auth.resetSubtitle}</p>
+      </div>
+
       <AuthForm
         action={updatePassword}
         lang={lang}

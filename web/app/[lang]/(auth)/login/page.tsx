@@ -14,9 +14,14 @@ export default async function LoginPage({
   const dict = await getDictionary(lang);
 
   return (
-    <div>
-      <h1>{dict.auth.signInTitle}</h1>
-      <p>{dict.auth.signInSubtitle}</p>
+    <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-3xl font-extrabold tracking-tight text-ink">
+          {dict.auth.signInTitle}
+        </h1>
+        <p className="text-ink-soft">{dict.auth.signInSubtitle}</p>
+      </div>
+
       <AuthForm
         action={signIn}
         lang={lang}
@@ -24,13 +29,24 @@ export default async function LoginPage({
         submitLabel={dict.auth.submitSignIn}
         fields={["email", "password"]}
       />
-      <p>
-        <Link href={`/${lang}/forgot-password`}>{dict.auth.forgotPassword}</Link>
-      </p>
-      <p>
-        {dict.auth.noAccount}{" "}
-        <Link href={`/${lang}/signup`}>{dict.nav.signUp}</Link>
-      </p>
+
+      <div className="flex flex-col gap-3 text-sm">
+        <Link
+          href={`/${lang}/forgot-password`}
+          className="font-semibold text-indigo transition-colors hover:text-indigo-deep"
+        >
+          {dict.auth.forgotPassword}
+        </Link>
+        <p className="text-ink-faint">
+          {dict.auth.noAccount}{" "}
+          <Link
+            href={`/${lang}/signup`}
+            className="font-semibold text-indigo transition-colors hover:text-indigo-deep"
+          >
+            {dict.nav.signUp}
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }

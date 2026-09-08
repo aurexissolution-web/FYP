@@ -14,9 +14,14 @@ export default async function ForgotPasswordPage({
   const dict = await getDictionary(lang);
 
   return (
-    <div>
-      <h1>{dict.auth.forgotTitle}</h1>
-      <p>{dict.auth.forgotSubtitle}</p>
+    <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-3xl font-extrabold tracking-tight text-ink">
+          {dict.auth.forgotTitle}
+        </h1>
+        <p className="text-ink-soft">{dict.auth.forgotSubtitle}</p>
+      </div>
+
       <AuthForm
         action={requestPasswordReset}
         lang={lang}
@@ -24,9 +29,13 @@ export default async function ForgotPasswordPage({
         submitLabel={dict.auth.submitReset}
         fields={["email"]}
       />
-      <p>
-        <Link href={`/${lang}/login`}>{dict.nav.signIn}</Link>
-      </p>
+
+      <Link
+        href={`/${lang}/login`}
+        className="text-sm font-semibold text-indigo transition-colors hover:text-indigo-deep"
+      >
+        {dict.nav.signIn}
+      </Link>
     </div>
   );
 }
