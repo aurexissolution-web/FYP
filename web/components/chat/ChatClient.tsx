@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CircleCheck, Send, ShieldAlert, Sparkles } from "lucide-react";
+import { CircleCheck, MessageCircle, Mic, Send, ShieldAlert, ShieldCheck, Sparkles } from "lucide-react";
 import type { Dictionary, Locale } from "@/lib/dictionaries";
 import type { AnalyzeResponse, ChatMessageRow } from "@/lib/chat/types";
 
@@ -16,9 +16,9 @@ type Bubble =
 const DAY_TINTS = ["text-sage-deep", "text-blue", "text-coral-deep"];
 
 const aiBubbleClass =
-  "max-w-[85%] self-start rounded-2xl rounded-bl-md border border-outline/70 bg-white px-4 py-2.5 text-[15px] leading-relaxed text-ink";
+  "max-w-[82%] self-start rounded-[1.25rem] rounded-bl-md border border-white bg-white/90 px-4 py-3 text-[15px] leading-relaxed text-ink shadow-[0_12px_30px_-24px_rgba(46,42,58,0.45)]";
 const userBubbleClass =
-  "max-w-[85%] self-end rounded-2xl rounded-br-md bg-indigo-tint px-4 py-2.5 text-[15px] leading-relaxed text-ink";
+  "max-w-[82%] self-end rounded-[1.25rem] rounded-br-md bg-indigo px-4 py-3 text-[15px] leading-relaxed text-white shadow-[0_12px_30px_-22px_rgba(74,63,99,0.65)]";
 
 /**
  * Reconstructs the bubble sequence a live session would have produced, from
@@ -158,12 +158,92 @@ export function ChatClient({
     }
   }
 
+  const isFresh = !sessionId && !loadingHistory && bubbles.length === 1;
+
   return (
-    <div className="flex h-full flex-col">
+    <div className="relative flex h-full flex-col overflow-hidden bg-[#f8f6fa]">
+      <div aria-hidden="true" className="absolute -left-32 top-10 h-96 w-96 rounded-full bg-indigo-tint/45 blur-3xl" />
+      <div aria-hidden="true" className="absolute -right-36 bottom-0 h-80 w-80 rounded-full bg-sage-tint/55 blur-3xl" />
+      <div aria-hidden="true" className="dot-grid absolute inset-0 opacity-20 [mask-image:linear-gradient(to_bottom,black,transparent_80%)]" />
       <h1 className="sr-only">{dict.title}</h1>
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto flex max-w-2xl flex-col gap-3 px-4 py-6 sm:px-6">
+      <div className="relative flex-1 overflow-y-auto">
+        <div className={`mx-auto flex min-h-full w-full max-w-5xl flex-col gap-4 px-4 py-6 sm:px-6 ${isFresh ? "justify-center pb-20" : "justify-start"}`}>
+          {isFresh && (
+            <div className="mx-auto w-full">
+              <div className="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16">
+                <div>
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <span className="grid h-12 w-12 place-items-center rounded-2xl bg-indigo text-white shadow-[0_16px_35px_-18px_rgba(74,63,99,0.8)]">
+                        <Sparkles size={21} aria-hidden="true" />
+                      </span>
+                      <div>
+                        <span className="text-sm font-extrabold text-ink">EmoBuddy</span>
+                        <span className="mt-0.5 flex items-center gap-1.5 text-[11px] font-semibold text-sage-deep">
+                          <span className="h-1.5 w-1.5 rounded-full bg-sage-deep" />
+                          {dict.aiLabel}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="rounded-full border border-outline/60 bg-white/60 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-ink-faint">EN · BM</span>
+                  </div>
+
+                  <h2 className="mt-8 text-4xl font-extrabold leading-[1.02] tracking-[-0.045em] text-ink text-balance sm:text-5xl">{dict.greeting}</h2>
+                  <p className="mt-4 max-w-xl text-sm leading-relaxed text-ink-soft sm:text-base">{dict.welcomeSubtitle}</p>
+                </div>
+
+                <div className="relative hidden h-[290px] place-items-center lg:grid" aria-hidden="true">
+                  <div className="absolute h-64 w-64 rounded-full border border-indigo/10" />
+                  <div className="absolute h-48 w-48 rounded-full border border-dashed border-indigo/20" />
+                  <div className="absolute h-32 w-32 rounded-[2.5rem] bg-gradient-to-br from-indigo via-[#8f7aad] to-sage shadow-[0_35px_70px_-28px_rgba(74,63,99,0.65)] rotate-12" />
+                  <div className="absolute grid h-24 w-24 place-items-center rounded-[2rem] border border-white/50 bg-white/20 text-white backdrop-blur-md -rotate-6">
+                    <Sparkles size={32} />
+                  </div>
+                  <span className="absolute left-7 top-9 grid h-12 w-12 place-items-center rounded-2xl border border-white bg-white/90 text-indigo shadow-lg"><MessageCircle size={19} /></span>
+                  <span className="absolute bottom-8 left-16 grid h-12 w-12 place-items-center rounded-2xl border border-white bg-white/90 text-coral-deep shadow-lg"><Mic size={19} /></span>
+                  <span className="absolute right-5 top-20 grid h-12 w-12 place-items-center rounded-2xl border border-white bg-white/90 text-sage-deep shadow-lg"><ShieldCheck size={19} /></span>
+                  <span className="absolute bottom-8 right-12 rounded-full border border-white bg-white/90 px-3 py-2 text-[10px] font-extrabold tracking-[0.16em] text-indigo shadow-lg">EN · BM</span>
+                </div>
+              </div>
+
+              <div className="mt-8 grid gap-3 sm:grid-cols-3">
+                {dict.prompts.map((prompt, index) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    onClick={() => setInput(prompt)}
+                    className={`group flex min-h-28 flex-col justify-between rounded-2xl border p-4 text-left shadow-[0_15px_40px_-30px_rgba(46,42,58,0.5)] transition-all hover:-translate-y-1 ${index === 0 ? "border-coral/20 bg-coral-tint/55" : index === 1 ? "border-indigo/15 bg-indigo-tint/55" : "border-sage/20 bg-sage-tint/60"}`}
+                  >
+                    <span className="text-[10px] font-extrabold tracking-[0.16em] text-ink-faint">0{index + 1}</span>
+                    <span className="flex items-end justify-between gap-3 text-sm font-bold leading-snug text-ink">
+                      {prompt}
+                      <Send size={14} className="shrink-0 text-indigo opacity-0 transition-opacity group-hover:opacity-100" />
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {!isFresh && (
+            <div className="mb-5 flex items-center justify-between gap-4 rounded-2xl border border-white bg-white/75 p-3 shadow-[0_16px_40px_-32px_rgba(46,42,58,0.45)] ring-1 ring-outline/40 backdrop-blur-sm">
+              <div className="flex items-center gap-3">
+                <span className="grid h-10 w-10 place-items-center rounded-xl bg-indigo text-white"><Sparkles size={17} /></span>
+                <div>
+                  <h2 className="text-sm font-extrabold text-ink">{dict.title}</h2>
+                  <p className="mt-0.5 flex items-center gap-1.5 text-[10px] font-semibold text-sage-deep"><span className="h-1.5 w-1.5 rounded-full bg-sage-deep" />{dict.aiLabel} · EN/BM</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {sessionId && (
+                  <button type="button" onClick={getPlan} disabled={busy} className="hidden items-center gap-1.5 rounded-xl bg-sage-tint px-3.5 py-2 text-xs font-bold text-sage-deep transition-colors hover:bg-sage/25 disabled:opacity-50 sm:inline-flex">
+                    <Sparkles size={13} />{dict.getPlan}
+                  </button>
+                )}
+
+              </div>
+            </div>
+          )}
           {loadingHistory && (
             <div className="flex items-center gap-1 self-start rounded-2xl rounded-bl-md border border-outline/70 bg-white px-4 py-3">
               {[0, 1, 2].map((i) => (
@@ -176,7 +256,7 @@ export function ChatClient({
             </div>
           )}
 
-          {bubbles.map((bubble, i) =>
+          {!isFresh && bubbles.map((bubble, i) =>
             bubble.kind === "text" ? (
               <div
                 key={i}
@@ -274,14 +354,14 @@ export function ChatClient({
         </div>
       </div>
 
-      <div className="shrink-0 border-t border-outline/60 bg-cream px-4 py-4 sm:px-6">
-        <div className="mx-auto flex max-w-2xl flex-col gap-3">
+      <div className="relative shrink-0 px-4 pb-4 sm:px-6 sm:pb-5">
+        <div className="mx-auto flex max-w-5xl flex-col gap-3 rounded-[1.4rem] border border-white bg-white/85 p-2.5 shadow-[0_22px_55px_-26px_rgba(46,42,58,0.4)] ring-1 ring-outline/40 backdrop-blur-xl">
           {sessionId && (
             <button
               type="button"
               onClick={getPlan}
               disabled={busy}
-              className="inline-flex w-fit items-center gap-1.5 self-start rounded-full bg-sage-tint px-3.5 py-1.5 text-xs font-bold text-sage-deep transition-colors hover:bg-sage/25 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex w-fit items-center gap-1.5 self-start rounded-full bg-sage-tint px-3.5 py-1.5 text-xs font-bold text-sage-deep transition-colors hover:bg-sage/25 disabled:cursor-not-allowed disabled:opacity-50 sm:hidden"
             >
               <Sparkles size={13} />
               {dict.getPlan}
@@ -301,13 +381,13 @@ export function ChatClient({
               placeholder={dict.inputPlaceholder}
               aria-label={dict.inputPlaceholder}
               disabled={busy}
-              className="flex-1 rounded-full border border-outline bg-white px-4 py-3 text-[15px] text-ink placeholder:text-ink-faint transition-colors focus:border-indigo focus:outline-none focus:ring-2 focus:ring-indigo/30"
+              className="flex-1 rounded-xl border-0 bg-transparent px-3 py-3 text-[15px] text-ink placeholder:text-ink-faint focus:outline-none"
             />
             <button
               type="submit"
               disabled={busy}
               aria-label={dict.send}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-indigo text-white transition-colors hover:bg-indigo-deep disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo text-white shadow-[0_10px_24px_-10px_rgba(74,63,99,0.75)] transition-all hover:-translate-y-0.5 hover:bg-indigo-deep disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
             >
               <Send size={17} />
             </button>

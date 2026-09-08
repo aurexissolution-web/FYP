@@ -50,6 +50,8 @@ export type Dictionary = {
   chat: {
     title: string;
     greeting: string;
+    welcomeSubtitle: string;
+    prompts: [string, string, string];
     youLabel: string;
     aiLabel: string;
     inputPlaceholder: string;
@@ -74,6 +76,10 @@ export type Dictionary = {
   };
   history: {
     title: string;
+    subtitle: string;
+    totalCheckIns: string;
+    activeDays: string;
+    emotionsLogged: string;
     groupToday: string;
     groupYesterday: string;
     groupThisWeek: string;
@@ -86,6 +92,8 @@ export type Dictionary = {
   };
   plan: {
     title: string;
+    subtitle: string;
+    progress: string;
     activeTitle: string;
     previousTitle: string;
     emptyTitle: string;
@@ -249,6 +257,16 @@ export type Dictionary = {
     eyebrow: string;
     heading: string;
     subheading: string;
+    identityEyebrow: string;
+    identityHeading: string;
+    identityBody: string;
+    showcaseEyebrow: string;
+    showcaseHeading: string;
+    showcaseFooterHeading: string;
+    showcaseFooterBody: string;
+    differenceEyebrow: string;
+    differenceHeading: string;
+    differences: [FeatureItem, FeatureItem, FeatureItem];
     items: FeatureItem[];
   };
   howItWorks: {
@@ -263,6 +281,14 @@ export type Dictionary = {
     eyebrow: string;
     heading: string;
     subheading: string;
+    abstractLabel: string;
+    accuracyLabel: string;
+    macroF1Label: string;
+    weightedF1Label: string;
+    deployedLabel: string;
+    foldsLabel: string;
+    matrixCaption: string;
+    figureLabel: string;
     taskHeading: string;
     taskBody: string;
     textHeading: string;
@@ -279,6 +305,7 @@ export type Dictionary = {
     limitations: string[];
     reproHeading: string;
     reproBody: string;
+    reproAssets: [string, string, string];
     tableClass: string;
     tablePrecision: string;
     tableRecall: string;
@@ -295,6 +322,29 @@ export type Dictionary = {
     sdgBody: string;
     sdg3: string;
     sdg10: string;
+    // Credits strip: who built it, under whom, where, and for what.
+    creditsEyebrow: string;
+    creditsHeading: string;
+    roleStudent: string;
+    roleSupervisor: string;
+    roleInstitution: string;
+    roleCompetition: string;
+    studentName: string;
+    supervisorName: string;
+    supervisorSub: string;
+    institutionName: string;
+    department: string;
+    session: string;
+    competition: string;
+    competitionSub: string;
+    // What was built, end to end.
+    builtEyebrow: string;
+    builtHeading: string;
+    builtBody: string;
+    built: [FeatureItem, FeatureItem, FeatureItem, FeatureItem];
+    // The dossier's five section titles, in order. Also used as the sticky index.
+    index: [string, string, string, string, string];
+    receiptsBody: string;
   };
   privacy: {
     eyebrow: string;

@@ -32,6 +32,7 @@ class LanguageToggle extends StatelessWidget {
         ),
       ],
       selected: {value},
+      showSelectedIcon: false,
       onSelectionChanged: (s) => onChanged(s.first),
       style: SegmentedButton.styleFrom(
         backgroundColor: colorScheme.surface,

@@ -14,12 +14,13 @@ export default async function LoginPage({
   const dict = await getDictionary(lang);
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-extrabold tracking-tight text-ink">
+    <div className="flex flex-col gap-7">
+      <div className="flex flex-col gap-3">
+        <span className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-sage-deep">EmoBuddy</span>
+        <h1 className="text-4xl font-extrabold leading-none tracking-[-0.04em] text-ink">
           {dict.auth.signInTitle}
         </h1>
-        <p className="text-ink-soft">{dict.auth.signInSubtitle}</p>
+        <p className="text-sm leading-relaxed text-ink-soft">{dict.auth.signInSubtitle}</p>
       </div>
 
       <AuthForm
@@ -30,7 +31,7 @@ export default async function LoginPage({
         fields={["email", "password"]}
       />
 
-      <div className="flex flex-col gap-3 text-sm">
+      <div className="flex flex-col gap-3 border-t border-outline/60 pt-5 text-sm">
         <Link
           href={`/${lang}/forgot-password`}
           className="font-semibold text-indigo transition-colors hover:text-indigo-deep"

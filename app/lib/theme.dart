@@ -229,7 +229,7 @@ class AppTheme {
         scrolledUnderElevation: 0.8,
         backgroundColor: _midnight,
         foregroundColor: scheme.onSurface,
-        centerTitle: true,
+        centerTitle: false,
         titleTextStyle: _textTheme.titleLarge?.copyWith(
           color: scheme.onSurface,
           fontWeight: FontWeight.w700,

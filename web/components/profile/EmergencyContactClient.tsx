@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Phone, Trash, UserPlus } from "lucide-react";
+import { Pencil, Phone, ShieldCheck, Trash, UserPlus } from "lucide-react";
 import type { Dictionary } from "@/lib/dictionaries";
 import type { EmergencyContactRow } from "@/lib/chat/emergency";
 
@@ -76,10 +76,13 @@ export function EmergencyContactClient({
   }
 
   return (
-    <div className="rounded-2xl border border-outline/70 bg-white p-5">
-      <div className="mb-1 flex flex-col gap-0.5">
-        <h2 className="text-sm font-bold text-ink">{dict.title}</h2>
-        <p className="text-xs text-ink-faint">{dict.subtitle}</p>
+    <section className="rounded-[2rem] border border-white bg-white/80 p-6 shadow-[0_22px_55px_-38px_rgba(46,42,58,0.5)] ring-1 ring-outline/40 sm:p-7">
+      <div className="flex items-start gap-4 border-b border-outline/50 pb-5">
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-coral-tint text-coral-deep"><ShieldCheck size={19} /></span>
+        <div>
+          <h2 className="text-lg font-extrabold tracking-tight text-ink">{dict.title}</h2>
+          <p className="mt-1 max-w-md text-xs leading-relaxed text-ink-faint">{dict.subtitle}</p>
+        </div>
       </div>
 
       {editing ? (
@@ -143,9 +146,9 @@ export function EmergencyContactClient({
           </div>
         </form>
       ) : contact ? (
-        <div className="mt-4 flex items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-coral-tint text-coral-deep">
-            <Phone size={16} />
+        <div className="mt-5 flex items-center gap-4 rounded-2xl bg-coral-tint/45 p-4">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-coral-deep shadow-sm">
+            <Phone size={17} />
           </span>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-bold text-ink">{contact.name}</p>
@@ -172,18 +175,18 @@ export function EmergencyContactClient({
           </button>
         </div>
       ) : (
-        <div className="mt-4 flex flex-col items-start gap-3">
-          <p className="text-sm text-ink-soft">{dict.emptyBody}</p>
+        <div className="mt-5 flex min-h-40 flex-col items-start justify-between rounded-2xl border border-dashed border-outline bg-cream/60 p-5">
+          <p className="max-w-md text-sm leading-relaxed text-ink-soft">{dict.emptyBody}</p>
           <button
             type="button"
             onClick={startEdit}
-            className="inline-flex items-center gap-1.5 rounded-full bg-indigo-tint px-4 py-2 text-xs font-bold text-indigo transition-colors hover:bg-indigo/20"
+            className="inline-flex items-center gap-2 rounded-xl bg-indigo px-4 py-2.5 text-xs font-bold text-white shadow-[0_10px_24px_-14px_rgba(74,63,99,0.75)] transition-colors hover:bg-indigo-deep"
           >
             <UserPlus size={14} />
             {dict.addButton}
           </button>
         </div>
       )}
-    </div>
+    </section>
   );
 }

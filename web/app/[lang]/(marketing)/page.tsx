@@ -799,10 +799,10 @@ export default async function HomePage({
               </div>
               <div className="grid gap-3">
                 {h.pills.map((pill, index) => (
-                  <div key={pill} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.07] p-4">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10 text-[10px] font-extrabold text-sage">0{index + 1}</span>
-                    <span className="text-sm font-bold text-white">{pill}</span>
-                    <CircleCheck size={16} className="ml-auto shrink-0 text-sage" aria-hidden="true" />
+                  <div key={pill} className="flex items-center gap-3 rounded-2xl border border-outline/50 bg-white/70 p-3.5">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-tint text-[9px] font-extrabold text-indigo">0{index + 1}</span>
+                    <span className="text-sm font-bold text-ink">{pill}</span>
+                    <CircleCheck size={15} className="ml-auto shrink-0 text-sage-deep" aria-hidden="true" />
                   </div>
                 ))}
               </div>

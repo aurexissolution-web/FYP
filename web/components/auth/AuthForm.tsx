@@ -7,7 +7,7 @@ import type { Dictionary, Locale } from "@/lib/dictionaries";
 type Action = (prev: AuthState, formData: FormData) => Promise<AuthState>;
 
 const inputClass =
-  "w-full rounded-xl border border-outline bg-white px-4 py-2.5 text-[15px] text-ink placeholder:text-ink-faint transition-colors focus:border-indigo focus:outline-none focus:ring-2 focus:ring-indigo/30";
+  "w-full rounded-xl border border-outline/80 bg-[#fbfafc] px-4 py-3.5 text-[15px] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] transition-all focus:border-indigo focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo/10";
 
 export function AuthForm({
   action,
@@ -37,7 +37,7 @@ export function AuthForm({
     : null;
 
   return (
-    <form action={formAction} className="flex flex-col gap-5">
+    <form action={formAction} className="flex flex-col gap-6">
       <input type="hidden" name="lang" value={lang} />
 
       <div className="flex flex-col gap-4">
@@ -104,7 +104,7 @@ export function AuthForm({
       <button
         type="submit"
         disabled={pending}
-        className="inline-flex w-full items-center justify-center rounded-full bg-indigo px-6 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-indigo-deep disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex w-full items-center justify-center rounded-xl bg-indigo px-6 py-3.5 text-sm font-bold text-white shadow-[0_12px_28px_-12px_rgba(74,63,99,0.7)] transition-all hover:-translate-y-0.5 hover:bg-indigo-deep hover:shadow-[0_16px_32px_-12px_rgba(74,63,99,0.75)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
       >
         {pending ? dict.working : submitLabel}
       </button>

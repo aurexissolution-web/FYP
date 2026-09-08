@@ -43,6 +43,8 @@ const ms: Dictionary = {
   chat: {
     title: "Luahkan perasaan bersama EmoBuddy",
     greeting: "Hai! Saya EmoBuddy. Bagaimana perasaan anda sekarang?",
+    welcomeSubtitle: "Mulakan dengan apa sahaja yang ada dalam fikiran anda. Ini ruang peribadi tanpa penghakiman.",
+    prompts: ["Hari saya agak sukar", "Saya berasa cemas", "Saya mahu memahami emosi saya"],
     youLabel: "Anda",
     aiLabel: "EmoBuddy",
     inputPlaceholder: "Ceritakan perasaan anda…",
@@ -68,6 +70,10 @@ const ms: Dictionary = {
   },
   history: {
     title: "Sejarah",
+    subtitle: "Semua semakan emosi, corak, dan perbualan anda dalam satu tempat.",
+    totalCheckIns: "Jumlah semakan",
+    activeDays: "Hari aktif",
+    emotionsLogged: "Emosi direkod",
     groupToday: "Hari ini",
     groupYesterday: "Semalam",
     groupThisWeek: "Minggu ini",
@@ -80,6 +86,8 @@ const ms: Dictionary = {
   },
   plan: {
     title: "Pelan",
+    subtitle: "Langkah kecil yang boleh dicapai, disesuaikan dengan semakan emosi terkini anda.",
+    progress: "Kemajuan",
     activeTitle: "Pelan penjagaan diri 3 hari anda",
     previousTitle: "Pelan lepas",
     emptyTitle: "Belum ada pelan",
@@ -337,10 +345,34 @@ const ms: Dictionary = {
     finalCtaButton: "Cipta Akaun Anda",
   },
   features: {
-    eyebrow: "Ciri-Ciri",
-    heading: "Bukan sekadar chatbot kesejahteraan biasa",
+    eyebrow: "Kenali EmoBuddy",
+    heading: "Semakan kesihatan mental yang mendengar lebih daripada kata-kata",
     subheading:
-      "Setiap ciri di bawah adalah sesuatu yang EmoBuddy benar-benar lakukan hari ini, bukan rancangan masa depan.",
+      "Ruang dwibahasa untuk meluahkan perasaan melalui suara atau teks, memahami emosi di sebaliknya, dan membawa pulang pelan kecil yang mampu dilakukan.",
+    identityEyebrow: "Siapa kami",
+    identityHeading: "Dibina pelajar. Berteraskan penyelidikan. Jujur tentang batasnya.",
+    identityBody:
+      "EmoBuddy ialah Projek Tahun Akhir dari Politeknik Tuanku Sultanah Bahiyah, dibangunkan untuk NICERS'26. Ia menyatukan aplikasi mudah alih, dua model emosi terlatih, backend selamat, dan pengalaman sokongan dwibahasa dalam satu sistem lengkap.",
+    showcaseEyebrow: "Apa yang anda dapat",
+    showcaseHeading: "Segala yang diperlukan untuk langkah pertama yang lebih selamat",
+    showcaseFooterHeading: "Satu semakan. Tujuh keupayaan yang bekerjasama.",
+    showcaseFooterBody: "Daripada input dwibahasa hingga sejarah yang menjaga privasi, setiap bahagian menyokong matlamat yang sama: membantu seseorang memahami perasaan dan mengambil langkah seterusnya yang mampu dilakukan.",
+    differenceEyebrow: "Keistimewaan EmoBuddy",
+    differenceHeading: "Dibina secara berbeza pada perkara yang paling penting",
+    differences: [
+      {
+        title: "Dwibahasa melalui seni bina",
+        body: "Bahasa Inggeris dan Bahasa Melayu mempunyai kata kunci krisis dan aliran respons tersendiri. Sokongan Melayu ialah sebahagian sistem, bukan lapisan terjemahan.",
+      },
+      {
+        title: "Dua model terlatih, satu keputusan",
+        body: "Bi-GRU membaca perkataan dan CNN membaca nada suara. Undian digabungkan mengikut kebolehpercayaan terukur bagi setiap emosi.",
+      },
+      {
+        title: "Keselamatan sebelum ramalan",
+        body: "Bahasa krisis disemak dahulu. Padanan menghentikan aliran biasa dan segera memaparkan talian bantuan Malaysia yang disahkan.",
+      },
+    ],
     items: [
       {
         title: "Perbualan dwibahasa",
@@ -409,6 +441,14 @@ const ms: Dictionary = {
     heading: "Angka di sebalik setiap balasan",
     subheading:
       "Keputusan penilaian sebenar daripada data yang ditahan, dilaporkan secara jujur — termasuk di mana model paling lemah.",
+    abstractLabel: "Abstrak penyelidikan",
+    accuracyLabel: "Ketepatan",
+    macroF1Label: "F1 makro",
+    weightedF1Label: "F1 berwajaran",
+    deployedLabel: "Ketepatan pengesahan checkpoint digunakan",
+    foldsLabel: "Lipatan berasingan mengikut pelakon",
+    matrixCaption: "Matriks kekeliruan agregat merentasi semua 6 lipatan. Baris ialah label sebenar; lajur ialah label ramalan.",
+    figureLabel: "Rajah",
     taskHeading: "Tugasan",
     taskBody:
       "EmoBuddy mengklasifikasikan setiap sesi semakan kepada salah satu daripada empat emosi — gembira, sedih, marah, atau neutral. Empat kelas kasar dipilih berbanding taksonomi yang lebih terperinci kerana kegunaan hiliran (memilih respons jagaan diri) tidak memerlukan resolusi lebih daripada itu, dan setiap kelas tambahan mengurangkan data latihan yang tersedia bagi setiap kelas.",
@@ -439,6 +479,7 @@ const ms: Dictionary = {
     reproHeading: "Kebolehulangan",
     reproBody:
       "Notebook latihan dan praproses, fail JSON metrik mentah, dan matriks kekeliruan bagi kedua-dua model terdapat dalam repositori GitHub projek ini.",
+    reproAssets: ["Notebook latihan", "JSON metrik mentah", "Matriks kekeliruan"],
     tableClass: "Kelas",
     tablePrecision: "Ketepatan",
     tableRecall: "Ingatan Semula",
@@ -458,6 +499,31 @@ const ms: Dictionary = {
       "Pilihan reka bentuk EmoBuddy sengaja dikaitkan dengan dua SDG, bukan sebagai slogan tetapi sebagai batasan yang membentuk apa yang dibina.",
     sdg3: "Kesihatan Baik & Kesejahteraan — sesi semakan kesihatan mental yang mudah diakses dan bebas prasangka, dengan pengatasan keselamatan krisis yang tegar.",
     sdg10: "Mengurangkan Ketaksamaan — sokongan Bahasa Melayu yang tulen, bukan produk Bahasa Inggeris yang diterjemahkan, supaya bahasa bukan penghalang untuk menggunakannya.",
+    creditsEyebrow: "Siapa yang membinanya",
+    creditsHeading: "Seorang pelajar, seorang penyelia, satu jabatan",
+    roleStudent: "Pelajar",
+    roleSupervisor: "Penyelia",
+    roleInstitution: "Institusi",
+    roleCompetition: "Pertandingan",
+    studentName: "Sanjay Gunabalan",
+    supervisorName: "Mafuzah Nor binti Radzi",
+    supervisorSub: "Pensyarah penyelia",
+    institutionName: "Politeknik Tuanku Sultanah Bahiyah",
+    department: "Jabatan Kejuruteraan Elektrik",
+    session: "Diploma Kejuruteraan Elektrik · Sesi 2, 2025/2026",
+    competition: "NICERS'26",
+    competitionSub: "Pertandingan inovasi peringkat kebangsaan · Gerai B054",
+    builtEyebrow: "Dibina dari hujung ke hujung",
+    builtHeading: "Setiap lapisan, daripada mikrofon hingga pangkalan data",
+    builtBody: "Tiada apa-apa di sini yang sekadar contoh atau API emosi pihak ketiga. Setiap bahagian direka, dilatih atau ditulis untuk projek ini, dan semuanya berjalan di atas infrastruktur percuma.",
+    built: [
+      { title: "Aplikasi iOS · Flutter", body: "Sesi semakan suara dan teks, sejarah, dan pelan 3 hari, berkongsi satu akaun dengan web." },
+      { title: "Laman web · Next.js", body: "Laman dwibahasa ini dan sembang web, dihoskan di Vercel — kod QR di gerai membawa ke sini." },
+      { title: "Inferens · FastAPI + PyTorch", body: "Model teks Bi-GRU, model audio CNN, gabungan berwajaran F1 dan semakan krisis, disajikan dari Render." },
+      { title: "Pangkalan data · Supabase", body: "Postgres dengan keselamatan peringkat baris, jadi hanya akaun anda sendiri yang boleh membaca sesi semakan anda." },
+    ],
+    index: ["Persoalannya", "Orang di sebaliknya", "Pembinaannya", "Komitmennya", "Buktinya"],
+    receiptsBody: "Tiga angka yang boleh disemak juri terhadap fail metrik dalam repositori — bukan slaid, tetapi penilaian sebenar.",
   },
   privacy: {
     eyebrow: "Privasi & Keselamatan",

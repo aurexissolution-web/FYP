@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { ShieldAlert } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 import { getDictionary, hasLocale } from "@/lib/dictionaries";
 import { createClient } from "@/lib/supabase/server";
@@ -27,8 +28,8 @@ export default async function AppLayout({
   const dict = await getDictionary(lang);
 
   return (
-    <div className="flex h-svh flex-col bg-cream">
-      <header className="sticky top-0 z-10 flex shrink-0 items-center justify-between border-b border-outline/60 bg-cream/90 px-4 py-3 backdrop-blur-sm sm:px-6">
+    <div className="flex h-svh flex-col bg-[#f8f6fa]">
+      <header className="sticky top-0 z-20 flex shrink-0 items-center justify-between border-b border-outline/50 bg-white/80 px-4 py-3.5 backdrop-blur-xl sm:px-6 lg:px-8">
         <Link href={`/${lang}/chat`} className="flex items-center gap-2.5">
           <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-white shadow-sm">
             <Image
@@ -43,11 +44,15 @@ export default async function AppLayout({
           <span className="text-sm font-bold tracking-tight text-ink">EmoBuddy</span>
         </Link>
         <div className="flex items-center gap-2">
+          <Link href={`/${lang}/help`} className="inline-flex items-center gap-1.5 rounded-full bg-coral-tint px-3 py-2 text-xs font-bold text-coral-deep transition-colors hover:bg-coral-deep hover:text-white">
+            <ShieldAlert size={14} />
+            <span className="hidden sm:inline">{dict.footer.getHelp}</span>
+          </Link>
           <LangToggle lang={lang} />
           <form action={`/auth/signout?lang=${lang}`} method="post">
             <button
               type="submit"
-              className="rounded-full border border-outline px-3 py-1.5 text-xs font-bold text-ink-faint transition-colors hover:border-coral hover:text-coral-deep"
+              className="rounded-full border border-outline/70 bg-white px-3.5 py-2 text-xs font-bold text-ink-faint transition-colors hover:border-coral hover:text-coral-deep"
             >
               {dict.chat.signOut}
             </button>
@@ -55,9 +60,10 @@ export default async function AppLayout({
         </div>
       </header>
 
-      <main className="flex-1 overflow-hidden">{children}</main>
-
-      <AppTabBar lang={lang} dict={dict.appNav} />
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        <AppTabBar lang={lang} dict={dict.appNav} newChatLabel={dict.chat.newChat} />
+        <main className="order-first min-h-0 flex-1 overflow-hidden lg:order-last">{children}</main>
+      </div>
     </div>
   );
 }

@@ -13,6 +13,9 @@ import '../services/emergency_contact_service.dart';
 import '../theme.dart';
 import '../widgets/emoji_avatar.dart';
 import '../widgets/typing_indicator.dart';
+import '../widgets/breathing_background.dart';
+import '../widgets/language_toggle.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 String _formatTime(DateTime time) {
   final hour = time.hour;
@@ -27,15 +30,17 @@ enum _Sentiment { positive, negative, neutral }
 class _MoodChipData {
   final String label;
   final String value;
+  final IconData icon;
 
-  const _MoodChipData({required this.label, required this.value});
+  const _MoodChipData({required this.label, required this.value, required this.icon});
 }
 
 class ChatScreen extends StatefulWidget {
   final ValueNotifier<String?>? sessionIdNotifier;
   final VoidCallback? onBackToHistory;
+  final VoidCallback? onOpenPlan;
 
-  const ChatScreen({super.key, this.sessionIdNotifier, this.onBackToHistory});
+  const ChatScreen({super.key, this.sessionIdNotifier, this.onBackToHistory, this.onOpenPlan});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -120,9 +125,14 @@ class _ChatScreenState extends State<ChatScreen> {
   VoidCallback? _onSessionIdChanged;
   Timer? _timer;
 
+  // Latest mood log (with its self_care_plans) for the welcome screen's Today card.
+  Map<String, dynamic>? _latestLog;
+  bool _homeLoaded = false;
+
   @override
   void initState() {
     super.initState();
+    _loadHome();
     _messages.add(
       _ChatMessage.aiText(
         _language == 'ms'
@@ -904,6 +914,11 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ),
         actions: [
+          LanguageToggle(
+            value: _language,
+            onChanged: (v) => setState(() => _language = v),
+          ),
+          const SizedBox(width: 8),
           _SoftIconButton(
             icon: Icons.more_horiz_rounded,
             tooltip: _language == 'ms' ? 'Lagi' : 'More',
@@ -1103,49 +1118,254 @@ class _ChatScreenState extends State<ChatScreen> {
         text: message.text ?? '', timestamp: message.timestamp);
   }
 
+  Future<void> _loadHome() async {
+    try {
+      final logs = await _sessionService.fetchMoodLogs();
+      if (!mounted) return;
+      setState(() {
+        _latestLog = logs.isEmpty ? null : logs.first;
+        _homeLoaded = true;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _homeLoaded = true);
+    }
+  }
+
+  String _greeting() {
+    final hour = DateTime.now().hour;
+    final ms = _language == 'ms';
+    final base = hour < 12
+        ? (ms ? 'Selamat pagi' : 'Good morning')
+        : hour < 17
+            ? (ms ? 'Selamat petang' : 'Good afternoon')
+            : (ms ? 'Selamat malam' : 'Good evening');
+    final user = Supabase.instance.client.auth.currentUser;
+    final meta = user?.userMetadata;
+    final name = (meta?['full_name'] ?? meta?['name']) as String?;
+    if (name == null || name.trim().isEmpty) return base;
+    final first = name.trim().split(RegExp(r'[\s._-]+')).first;
+    final pretty = first[0].toUpperCase() + first.substring(1);
+    return '$base, $pretty';
+  }
+
+  String _relativeTime(DateTime t) {
+    final ms = _language == 'ms';
+    final d = DateTime.now().difference(t);
+    if (d.inMinutes < 1) return ms ? 'baru sahaja' : 'just now';
+    if (d.inHours < 1) return ms ? '${d.inMinutes} min lalu' : '${d.inMinutes} min ago';
+    if (d.inDays < 1) return ms ? '${d.inHours} jam lalu' : '${d.inHours} h ago';
+    if (d.inDays == 1) return ms ? 'semalam' : 'yesterday';
+    return ms ? '${d.inDays} hari lalu' : '${d.inDays} days ago';
+  }
+
   Widget _buildWelcomeView() {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final ms = _language == 'ms';
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(height: 32),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  colorScheme.primary.withOpacity(0.18),
-                  colorScheme.primary.withOpacity(0.0),
+          const Center(child: FadeInUp(child: BreathingLogo(size: 72))),
+          const SizedBox(height: 6),
+          FadeInUp(
+            delay: const Duration(milliseconds: 120),
+            child: Column(
+              children: [
+                Text(
+                  _greeting().toUpperCase(),
+                  style: textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.6,
+                    color: colorScheme.onSecondaryContainer,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  ms ? 'Apa khabar hari ini?' : 'How are you feeling?',
+                  style: textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  ms
+                      ? 'Taip, rakam nota suara, atau pilih satu di bawah.'
+                      : 'Type, send a voice note, or pick one below.',
+                  style: textTheme.bodyLarge?.copyWith(color: colorScheme.onSurface.withOpacity(0.6)),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 22),
+          FadeInUp(delay: const Duration(milliseconds: 220), child: _buildQuickReplyChips()),
+          const SizedBox(height: 20),
+          FadeInUp(delay: const Duration(milliseconds: 320), child: _buildTodayCard()),
+        ],
+      ),
+    );
+  }
+
+  /// The welcome screen's "Today" card: last check-in + plan progress when the
+  /// user has history, otherwise a three-step explainer for a first check-in.
+  Widget _buildTodayCard() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final ms = _language == 'ms';
+    if (!_homeLoaded) return const SizedBox(height: 120);
+
+    final log = _latestLog;
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    final card = BoxDecoration(
+      color: isLight ? Colors.white.withOpacity(0.72) : colorScheme.surfaceContainerHighest.withOpacity(0.85),
+      borderRadius: BorderRadius.circular(24),
+      border: Border.all(color: colorScheme.outline.withOpacity(0.5)),
+      boxShadow: [
+        BoxShadow(
+          color: colorScheme.shadow.withOpacity(0.12),
+          blurRadius: 24,
+          offset: const Offset(0, 10),
+        ),
+      ],
+    );
+
+    if (log == null) {
+      final steps = ms
+          ? const [
+              (Icons.mic_rounded, 'Luahkan atau taip perasaan anda'),
+              (Icons.psychology_rounded, 'Dua model membaca perkataan dan nada'),
+              (Icons.spa_rounded, 'Terima balasan dan pelan 3 hari'),
+            ]
+          : const [
+              (Icons.mic_rounded, 'Say or type how you feel'),
+              (Icons.psychology_rounded, 'Two models read your words and tone'),
+              (Icons.spa_rounded, 'Get a reply and a 3-day self-care plan'),
+            ];
+      return Container(
+        decoration: card,
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              ms ? 'SEMAKAN PERTAMA ANDA' : 'YOUR FIRST CHECK-IN',
+              style: textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w800, letterSpacing: 1.4, color: colorScheme.primary),
+            ),
+            const SizedBox(height: 12),
+            for (var i = 0; i < steps.length; i++) ...[
+              Row(
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(color: colorScheme.primaryContainer, borderRadius: BorderRadius.circular(11)),
+                    child: Icon(steps[i].$1, size: 18, color: colorScheme.onPrimaryContainer),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text(steps[i].$2, style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600))),
                 ],
               ),
+              if (i < steps.length - 1) const SizedBox(height: 10),
+            ],
+          ],
+        ),
+      );
+    }
+
+    final emotion = (log['fusion_result'] as String? ?? 'neutral').toLowerCase();
+    final labels = ms
+        ? {'happy': 'Gembira', 'sad': 'Sedih', 'angry': 'Marah', 'neutral': 'Neutral'}
+        : {'happy': 'Happy', 'sad': 'Sad', 'angry': 'Angry', 'neutral': 'Neutral'};
+    final accents = {
+      'happy': AppTheme.moodAccents[2],
+      'sad': AppTheme.moodAccents[0],
+      'angry': AppTheme.moodAccents[3],
+      'neutral': AppTheme.moodAccents[1],
+    };
+    final accent = accents[emotion] ?? colorScheme.primary;
+    final when = DateTime.tryParse(log['created_at'] as String? ?? '')?.toLocal();
+    final plans = ((log['self_care_plans'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>()).toList()
+      ..sort((a, b) => ((a['day_index'] as int?) ?? 0).compareTo((b['day_index'] as int?) ?? 0));
+    final done = plans.where((p) => p['completed_at'] != null).length;
+    final next = plans.cast<Map<String, dynamic>?>().firstWhere((p) => p!['completed_at'] == null, orElse: () => null);
+
+    return Container(
+      decoration: card,
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                ms ? 'HARI INI' : 'TODAY',
+                style: textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w800, letterSpacing: 1.4, color: colorScheme.primary),
+              ),
+              const Spacer(),
+              if (when != null)
+                Text(
+                  '${ms ? 'Semakan terakhir' : 'Last check-in'} · ${_relativeTime(when)}',
+                  style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurface.withOpacity(0.5)),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 10),
+              Text(labels[emotion] ?? emotion, style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+            ],
+          ),
+          if (plans.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                value: plans.isEmpty ? 0 : done / plans.length,
+                minHeight: 7,
+                backgroundColor: colorScheme.surfaceContainerHighest,
+                color: colorScheme.secondary,
+              ),
             ),
-            child: const _AiAvatar(size: 80),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            _language == 'ms' ? 'Apa khabar?' : 'How are you feeling?',
-            style: textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
+            const SizedBox(height: 10),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    next == null
+                        ? (ms ? 'Pelan 3 hari selesai — syabas!' : '3-day plan complete — well done!')
+                        : '${ms ? 'Hari' : 'Day'} ${next['day_index']} · ${next['activity']}',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                  ),
                 ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 10),
-          Text(
-            _language == 'ms'
-                ? 'Kongsikan perasaan anda — taip atau rakam nota suara.'
-                : 'Share how you feel — type or send a voice note.',
-            style: textTheme.bodyLarge?.copyWith(
-                  color: colorScheme.onSurface.withOpacity(0.6),
+                const SizedBox(width: 12),
+                Text('$done/${plans.length}', style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w800, color: colorScheme.onSecondaryContainer)),
+              ],
+            ),
+            if (widget.onOpenPlan != null) ...[
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: widget.onOpenPlan,
+                  style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6)),
+                  icon: Text(ms ? 'Buka pelan' : 'Open plan', style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w800)),
+                  label: const Icon(Icons.arrow_forward_rounded, size: 18),
                 ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 32),
-          _buildQuickReplyChips(),
+              ),
+            ],
+          ],
         ],
       ),
     );
@@ -1193,58 +1413,76 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildQuickReplyChips() {
+    final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final chips = _language == 'ms'
         ? const [
-            _MoodChipData(label: 'Cemas', value: 'Saya rasa cemas.'),
-            _MoodChipData(label: 'Gembira', value: 'Saya rasa gembira!'),
-            _MoodChipData(label: 'Letih', value: 'Saya rasa sangat letih.'),
-            _MoodChipData(label: 'Sedih', value: 'Saya rasa sedih.'),
-            _MoodChipData(label: 'Marah', value: 'Saya rasa marah.'),
-            _MoodChipData(label: 'Perlu bantuan', value: 'Saya perlukan bantuan.'),
+            _MoodChipData(label: 'Cemas', value: 'Saya rasa cemas.', icon: Icons.bolt_rounded),
+            _MoodChipData(label: 'Gembira', value: 'Saya rasa gembira!', icon: Icons.wb_sunny_rounded),
+            _MoodChipData(label: 'Letih', value: 'Saya rasa sangat letih.', icon: Icons.bedtime_rounded),
+            _MoodChipData(label: 'Sedih', value: 'Saya rasa sedih.', icon: Icons.water_drop_rounded),
+            _MoodChipData(label: 'Marah', value: 'Saya rasa marah.', icon: Icons.local_fire_department_rounded),
+            _MoodChipData(label: 'Perlu bantuan', value: 'Saya perlukan bantuan.', icon: Icons.shield_rounded),
           ]
         : const [
-            _MoodChipData(label: 'Stressed', value: 'I feel stressed.'),
-            _MoodChipData(label: 'Happy', value: 'I feel happy!'),
-            _MoodChipData(label: 'Tired', value: 'I feel really tired.'),
-            _MoodChipData(label: 'Sad', value: 'I feel sad.'),
-            _MoodChipData(label: 'Anxious', value: 'I feel anxious.'),
-            _MoodChipData(label: 'Need help', value: 'I need help.'),
+            _MoodChipData(label: 'Stressed', value: 'I feel stressed.', icon: Icons.bolt_rounded),
+            _MoodChipData(label: 'Happy', value: 'I feel happy!', icon: Icons.wb_sunny_rounded),
+            _MoodChipData(label: 'Tired', value: 'I feel really tired.', icon: Icons.bedtime_rounded),
+            _MoodChipData(label: 'Sad', value: 'I feel sad.', icon: Icons.water_drop_rounded),
+            _MoodChipData(label: 'Anxious', value: 'I feel anxious.', icon: Icons.waves_rounded),
+            _MoodChipData(label: 'Need help', value: 'I need help.', icon: Icons.shield_rounded),
           ];
+    final disabled = _sending || _recording;
 
-    return Center(
-      child: Wrap(
-        alignment: WrapAlignment.center,
-        spacing: 10,
-        runSpacing: 10,
-        children: chips
-            .asMap()
-            .entries
-            .map(
-              (entry) {
-                final accent =
-                    AppTheme.moodAccents[entry.key % AppTheme.moodAccents.length];
-                final chip = entry.value;
-                return ActionChip(
-                  label: Text(chip.label),
-                  labelStyle: textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: accent,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const gap = 10.0;
+        final tileWidth = (constraints.maxWidth - gap * 2) / 3;
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: [
+            for (var i = 0; i < chips.length; i++)
+              () {
+                final chip = chips[i];
+                final isHelp = i == chips.length - 1;
+                final accent = isHelp ? colorScheme.error : AppTheme.moodAccents[i % AppTheme.moodAccents.length];
+                final bg = isHelp ? accent : accent.withOpacity(0.13);
+                final fg = isHelp ? Colors.white : accent;
+                return SizedBox(
+                  width: tileWidth,
+                  child: Material(
+                    color: bg,
+                    borderRadius: BorderRadius.circular(18),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(18),
+                      onTap: disabled ? null : () => _submitUserMessage(chip.value),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: isHelp ? Colors.transparent : accent.withOpacity(0.35)),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(chip.icon, size: 22, color: fg),
+                            const SizedBox(height: 6),
+                            Text(
+                              chip.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700, color: fg),
+                            ),
+                          ],
+                        ),
                       ),
-                  backgroundColor: accent.withOpacity(0.14),
-                  side: BorderSide(color: accent.withOpacity(0.35)),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                  onPressed: _sending || _recording
-                      ? null
-                      : () => _submitUserMessage(chip.value),
+                    ),
+                  ),
                 );
-              },
-            )
-            .toList(),
-      ),
+              }(),
+          ],
+        );
+      },
     );
   }
 

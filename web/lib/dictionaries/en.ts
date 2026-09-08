@@ -43,6 +43,8 @@ const en: Dictionary = {
   chat: {
     title: "Check in with EmoBuddy",
     greeting: "Hi! I'm EmoBuddy. How are you feeling right now?",
+    welcomeSubtitle: "You can start with whatever is on your mind. This is a private, judgment-free space.",
+    prompts: ["I've had a difficult day", "I'm feeling anxious", "I want to understand my mood"],
     youLabel: "You",
     aiLabel: "EmoBuddy",
     inputPlaceholder: "Tell me how you're feeling…",
@@ -68,6 +70,10 @@ const en: Dictionary = {
   },
   history: {
     title: "History",
+    subtitle: "Your emotional check-ins, patterns, and conversations in one place.",
+    totalCheckIns: "Total check-ins",
+    activeDays: "Active days",
+    emotionsLogged: "Emotions logged",
     groupToday: "Today",
     groupYesterday: "Yesterday",
     groupThisWeek: "This week",
@@ -80,6 +86,8 @@ const en: Dictionary = {
   },
   plan: {
     title: "Plan",
+    subtitle: "Small, achievable steps shaped around your latest emotional check-in.",
+    progress: "Progress",
     activeTitle: "Your 3-day self-care plan",
     previousTitle: "Previous plans",
     emptyTitle: "No plan yet",
@@ -337,10 +345,34 @@ const en: Dictionary = {
     finalCtaButton: "Create Your Account",
   },
   features: {
-    eyebrow: "Features",
-    heading: "Not another wellness chatbot",
+    eyebrow: "Meet EmoBuddy",
+    heading: "Mental health check-ins that listen to more than words",
     subheading:
-      "Every feature below is something EmoBuddy actually does today, not a roadmap item.",
+      "A bilingual space to speak or type how you feel, understand the emotion behind it, and leave with a small plan you can actually follow.",
+    identityEyebrow: "Who we are",
+    identityHeading: "Student-built. Research-grounded. Honest about the limits.",
+    identityBody:
+      "EmoBuddy is a Final Year Project from Politeknik Tuanku Sultanah Bahiyah, created for NICERS'26. It brings a mobile app, two trained emotion models, a secure backend, and a bilingual support experience into one complete system.",
+    showcaseEyebrow: "What you get",
+    showcaseHeading: "Everything needed for a safer first step",
+    showcaseFooterHeading: "One check-in. Seven capabilities working together.",
+    showcaseFooterBody: "From bilingual input to privacy-safe history, every part supports the same goal: helping someone understand how they feel and take a manageable next step.",
+    differenceEyebrow: "Why EmoBuddy stands out",
+    differenceHeading: "Built differently where it matters most",
+    differences: [
+      {
+        title: "Bilingual by architecture",
+        body: "English and Bahasa Melayu have their own crisis keywords and response paths. Malay support is part of the system, not a translated layer.",
+      },
+      {
+        title: "Two trained models, one decision",
+        body: "A Bi-GRU reads the words and a CNN reads vocal tone. Their votes are combined by measured per-emotion reliability.",
+      },
+      {
+        title: "Safety runs before prediction",
+        body: "Crisis language is checked first. A match stops the normal flow and immediately surfaces verified Malaysian hotlines.",
+      },
+    ],
     items: [
       {
         title: "Bilingual conversation",
@@ -409,6 +441,14 @@ const en: Dictionary = {
     heading: "The numbers behind the reply",
     subheading:
       "Real evaluation results from held-out data, reported honestly — including where the models are weakest.",
+    abstractLabel: "Research abstract",
+    accuracyLabel: "Accuracy",
+    macroF1Label: "Macro F1",
+    weightedF1Label: "Weighted F1",
+    deployedLabel: "Deployed checkpoint validation accuracy",
+    foldsLabel: "Actor-disjoint folds",
+    matrixCaption: "Aggregated confusion matrix across all 6 folds. Rows are true labels; columns are predicted labels.",
+    figureLabel: "Figure",
     taskHeading: "The task",
     taskBody:
       "EmoBuddy classifies every check-in into one of four emotions — happy, sad, angry, or neutral. Four coarse classes were chosen over a finer-grained taxonomy because the downstream use (choosing a self-care response) doesn't need more resolution than that, and every added class shrinks the training data available per class.",
@@ -439,6 +479,7 @@ const en: Dictionary = {
     reproHeading: "Reproducibility",
     reproBody:
       "Training and preprocessing notebooks, the raw metrics JSON, and the confusion matrices for both models are in the project's GitHub repository.",
+    reproAssets: ["Training notebooks", "Raw metrics JSON", "Confusion matrices"],
     tableClass: "Class",
     tablePrecision: "Precision",
     tableRecall: "Recall",
@@ -458,6 +499,31 @@ const en: Dictionary = {
       "EmoBuddy's design choices are deliberately tied to two SDGs, not as a slogan but as constraints that shaped what got built.",
     sdg3: "Good Health & Well-Being — accessible, judgment-free mental health check-ins, with a hard crisis-safety override.",
     sdg10: "Reduced Inequalities — genuine Bahasa Melayu support, not a translated English product, so language isn't a barrier to using it.",
+    creditsEyebrow: "Who made it",
+    creditsHeading: "One student, one supervisor, one department",
+    roleStudent: "Student",
+    roleSupervisor: "Supervisor",
+    roleInstitution: "Institution",
+    roleCompetition: "Competition",
+    studentName: "Sanjay Gunabalan",
+    supervisorName: "Mafuzah Nor binti Radzi",
+    supervisorSub: "Supervising lecturer",
+    institutionName: "Politeknik Tuanku Sultanah Bahiyah",
+    department: "Jabatan Kejuruteraan Elektrik · Department of Electrical Engineering",
+    session: "Diploma in Electrical Engineering · Session 2, 2025/2026",
+    competition: "NICERS'26",
+    competitionSub: "National innovation competition · Booth B054",
+    builtEyebrow: "Built end to end",
+    builtHeading: "Every layer, from the microphone to the database",
+    builtBody: "Nothing here is a mock-up or a third-party emotion API. Each part was designed, trained or written for this project, and all of it runs on free-tier infrastructure.",
+    built: [
+      { title: "iOS app · Flutter", body: "Voice and text check-ins, history, and the 3-day plan, sharing one account with the web." },
+      { title: "Website · Next.js", body: "This bilingual site and the web chat, deployed on Vercel — the QR at the booth lands here." },
+      { title: "Inference · FastAPI + PyTorch", body: "The Bi-GRU text model, the CNN audio model, F1-weighted fusion and the crisis check, served from Render." },
+      { title: "Database · Supabase", body: "Postgres with row-level security, so only your own account can ever read your check-ins." },
+    ],
+    index: ["The question", "The people", "The build", "The commitments", "The receipts"],
+    receiptsBody: "Three numbers a judge can check against the metrics files in the repository — not a slide, the evaluation.",
   },
   privacy: {
     eyebrow: "Privacy & Safety",

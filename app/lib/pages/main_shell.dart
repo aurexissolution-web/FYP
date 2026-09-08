@@ -36,6 +36,7 @@ class _MainShellState extends State<MainShell> {
     ChatScreen(
       sessionIdNotifier: _selectedSessionId,
       onBackToHistory: () => setState(() => _index = 1),
+      onOpenPlan: () => setState(() => _index = 2),
     ),
     HistoryPage(
       onSessionSelected: (id) {
@@ -77,45 +78,33 @@ class _MainShellState extends State<MainShell> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
+      extendBody: true,
       body: IndexedStack(
         index: _index,
         children: _pages,
       ),
       bottomNavigationBar: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(32),
+          borderRadius: BorderRadius.circular(30),
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
             child: Container(
-              height: 68,
+              height: 64,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(32),
-                // A faint primary/secondary tint over the frosted glass so
-                // the bar reads as "branded" instead of plain gray-on-blur.
-                gradient: LinearGradient(
-                  colors: [
-                    colorScheme.primary.withOpacity(0.22),
-                    colorScheme.surface.withOpacity(0.55),
-                    colorScheme.secondary.withOpacity(0.2),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                border: Border.all(
-                  color: colorScheme.outline.withOpacity(0.25),
-                ),
+                // Ink glass: the same dark floating pill as the website's nav,
+                // so the app and the site read as one product. Inverts in dark mode.
+                color: const Color(0xFF2E2A3A).withOpacity(0.92),
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: Colors.white.withOpacity(0.12)),
                 boxShadow: [
                   BoxShadow(
-                    color: colorScheme.shadow.withOpacity(0.28),
-                    blurRadius: 24,
-                    offset: const Offset(0, 10),
+                    color: Colors.black.withOpacity(0.32),
+                    blurRadius: 30,
+                    offset: const Offset(0, 14),
                   ),
                 ],
               ),
-              // A plain Row of equally-sized, centered tap targets --
-              // guarantees the icons/labels line up evenly, unlike
-              // NavigationBar's layout at non-default heights.
               child: Row(
                 children: [
                   for (var i = 0; i < _items.length; i++)
@@ -161,33 +150,34 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final color = selected
-        ? colorScheme.onPrimaryContainer
-        : colorScheme.onSurface.withOpacity(0.6);
+    // Fixed colours -- the pill itself never changes with the app's theme,
+    // so its content must not either.
+    const onBar = Colors.white;
+    const accent = Color(0xFFCEC2E8);
+    final color = selected ? onBar : onBar.withOpacity(0.55);
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
         child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOut,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 decoration: BoxDecoration(
-                  color: selected
-                      ? colorScheme.primaryContainer.withOpacity(0.9)
-                      : Colors.transparent,
+                  color: selected ? onBar.withOpacity(0.14) : Colors.transparent,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Icon(
                   selected ? data.selectedIcon : data.icon,
-                  size: selected ? 22 : 20,
-                  color: color,
+                  size: 21,
+                  color: selected ? accent : color,
                 ),
               ),
               const SizedBox(height: 3),

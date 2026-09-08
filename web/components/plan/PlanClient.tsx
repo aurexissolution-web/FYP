@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Circle, CircleCheck, MessageCircleHeart } from "lucide-react";
+import { Circle, CircleCheck, MessageCircleHeart, Sparkles } from "lucide-react";
 import type { Dictionary, Locale } from "@/lib/dictionaries";
 import type { MoodLogWithPlans } from "@/lib/chat/types";
 import { MOOD_EMOJI, MOOD_TINT } from "@/lib/mood";
@@ -28,20 +28,18 @@ function DayRow({
     <button
       type="button"
       onClick={onToggle}
-      className="flex w-full items-start gap-2.5 rounded-xl px-1 py-1.5 text-left transition-colors hover:bg-cream-alt"
+      className="group flex w-full items-start gap-3 rounded-xl border border-transparent p-3 text-left transition-all hover:border-outline/60 hover:bg-white/70"
     >
-      {completed ? (
-        <CircleCheck size={18} className={`mt-0.5 shrink-0 ${tint}`} />
-      ) : (
-        <Circle size={18} className="mt-0.5 shrink-0 text-ink-faint" />
-      )}
-      <span
-        className={`text-sm leading-snug ${completed ? "text-ink-faint line-through" : "text-ink"}`}
-      >
-        <span className="font-semibold">
-          {dayLabel} {day}:
-        </span>{" "}
-        {activity}
+      <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${completed ? "bg-sage-tint" : "bg-cream-alt"}`}>
+        {completed ? (
+          <CircleCheck size={17} className={tint} />
+        ) : (
+          <Circle size={17} className="text-ink-faint" />
+        )}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[9px] font-extrabold uppercase tracking-[0.16em] text-ink-faint">{dayLabel} {day}</span>
+        <span className={`mt-1 block text-sm leading-relaxed ${completed ? "text-ink-faint line-through" : "text-ink"}`}>{activity}</span>
       </span>
     </button>
   );
@@ -107,55 +105,61 @@ export function PlanClient({
 
   const [active, ...previous] = withPlans;
 
-  const renderPlanCard = (log: MoodLogWithPlans, title: string) => {
+  const renderPlanCard = (log: MoodLogWithPlans, title: string, featured = false) => {
     const tint = MOOD_TINT[log.fusion_result];
     const days = [...log.self_care_plans].sort((a, b) => a.day_index - b.day_index);
+    const complete = days.filter((day) => day.completed_at).length;
+    const progress = days.length ? Math.round((complete / days.length) * 100) : 0;
     return (
-      <div key={log.id} className="rounded-2xl border border-outline/70 bg-white p-5">
-        <div className="mb-3 flex items-center gap-2.5">
-          <span className={`flex h-8 w-8 items-center justify-center rounded-full text-base ${tint.bg}`}>
-            {MOOD_EMOJI[log.fusion_result]}
-          </span>
-          <div className="flex flex-col">
-            <span className="text-sm font-bold text-ink">{title}</span>
-            <span className="text-xs text-ink-faint">
-              {new Date(log.created_at).toLocaleDateString(lang === "ms" ? "ms-MY" : "en-MY", {
-                day: "numeric",
-                month: "short",
-              })}
-            </span>
+      <article key={log.id} className={`relative overflow-hidden rounded-[1.75rem] border p-5 sm:p-6 ${featured ? "border-indigo/15 bg-white shadow-[0_25px_65px_-38px_rgba(74,63,99,0.55)]" : "border-white bg-white/75 ring-1 ring-outline/40"}`}>
+        {featured && <div aria-hidden="true" className="absolute -right-20 -top-24 h-56 w-56 rounded-full bg-indigo-tint/75 blur-2xl" />}
+        <div className="relative flex items-start justify-between gap-4 border-b border-outline/50 pb-5">
+          <div className="flex items-center gap-3">
+            <span className={`flex h-11 w-11 items-center justify-center rounded-2xl text-lg ${tint.bg}`}>{MOOD_EMOJI[log.fusion_result]}</span>
+            <div className="flex flex-col">
+              <span className={`${featured ? "text-lg" : "text-sm"} font-extrabold tracking-tight text-ink`}>{title}</span>
+              <span className="mt-0.5 text-xs text-ink-faint">
+                {new Date(log.created_at).toLocaleDateString(lang === "ms" ? "ms-MY" : "en-MY", { day: "numeric", month: "short" })}
+              </span>
+            </div>
+          </div>
+          <div className="text-right">
+            <span className="text-2xl font-extrabold tabular-nums text-ink">{progress}%</span>
+            <span className="block text-[9px] font-extrabold uppercase tracking-[0.14em] text-ink-faint">{dict.progress}</span>
           </div>
         </div>
-        <div className="flex flex-col gap-1">
+        <div className="relative mt-3 flex flex-col gap-1">
           {days.map((p, i) => (
-            <DayRow
-              key={p.id}
-              dayLabel={dayLabel}
-              day={p.day_index}
-              activity={p.activity}
-              completed={Boolean(p.completed_at)}
-              tint={DAY_TINTS[i % DAY_TINTS.length]}
-              onToggle={() => toggle(p.id, !p.completed_at)}
-            />
+            <DayRow key={p.id} dayLabel={dayLabel} day={p.day_index} activity={p.activity} completed={Boolean(p.completed_at)} tint={DAY_TINTS[i % DAY_TINTS.length]} onToggle={() => toggle(p.id, !p.completed_at)} />
           ))}
         </div>
-      </div>
+        <div className="relative mt-4 h-1.5 overflow-hidden rounded-full bg-cream-alt">
+          <span className="block h-full rounded-full bg-gradient-to-r from-indigo to-sage transition-[width] duration-500" style={{ width: `${progress}%` }} />
+        </div>
+      </article>
     );
   };
 
   return (
-    <div className="flex flex-col gap-6">
-      {renderPlanCard(active, dict.activeTitle)}
+    <div className="flex flex-col gap-9">
+      <section>
+        <div className="mb-3 flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.18em] text-indigo">
+          <Sparkles size={13} />
+          {dict.activeTitle}
+        </div>
+        {renderPlanCard(active, dict.activeTitle, true)}
+      </section>
 
       {previous.length > 0 && (
-        <div className="flex flex-col gap-3">
-          <h2 className="text-xs font-extrabold uppercase tracking-wide text-ink-faint">
-            {dict.previousTitle}
-          </h2>
-          <div className="flex flex-col gap-3">
+        <section>
+          <div className="mb-4 flex items-end justify-between border-b border-outline/60 pb-3">
+            <h2 className="text-sm font-extrabold text-ink">{dict.previousTitle}</h2>
+            <span className="text-2xl font-extrabold text-ink/15 tabular-nums">{String(previous.length).padStart(2, "0")}</span>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
             {previous.map((log) => renderPlanCard(log, log.title ?? dict.previousTitle))}
           </div>
-        </div>
+        </section>
       )}
     </div>
   );
