@@ -47,6 +47,22 @@ export type Dictionary = {
       generic: string;
     };
   };
+  chat: {
+    title: string;
+    greeting: string;
+    inputPlaceholder: string;
+    send: string;
+    getPlan: string;
+    thinking: string;
+    planTitle: string;
+    dayLabel: string;
+    signOut: string;
+    newChat: string;
+    notSaved: string;
+    errorReply: string;
+    errorPlan: string;
+    crisisNotice: string;
+  };
   footer: {
     tagline: string;
     product: string;

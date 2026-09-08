@@ -40,6 +40,23 @@ const ms: Dictionary = {
       generic: "Ada sesuatu yang tidak kena. Sila cuba lagi.",
     },
   },
+  chat: {
+    title: "Luahkan perasaan bersama EmoBuddy",
+    greeting: "Hai! Saya EmoBuddy. Bagaimana perasaan anda sekarang?",
+    inputPlaceholder: "Ceritakan perasaan anda…",
+    send: "Hantar",
+    getPlan: "Dapatkan pelan saya",
+    thinking: "EmoBuddy sedang berfikir…",
+    planTitle: "Pelan penjagaan diri 3 hari anda",
+    dayLabel: "Hari",
+    signOut: "Log Keluar",
+    newChat: "Perbualan baharu",
+    notSaved: "Disimpan pada halaman ini sahaja — mesej ini gagal disimpan.",
+    errorReply: "Saya tidak dapat menghubungi EmoBuddy sekarang. Sila cuba lagi.",
+    errorPlan: "Saya tidak dapat menyediakan pelan anda sekarang. Sila cuba lagi.",
+    crisisNotice:
+      "Nampaknya anda sedang melalui sesuatu yang serius. Sila hubungi salah satu perkhidmatan ini.",
+  },
   footer: {
     tagline: "Ruang yang lebih tenang untuk emosi anda.",
     product: "Produk",

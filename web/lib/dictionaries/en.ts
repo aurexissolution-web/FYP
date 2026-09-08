@@ -40,6 +40,23 @@ const en: Dictionary = {
       generic: "Something went wrong. Please try again.",
     },
   },
+  chat: {
+    title: "Check in with EmoBuddy",
+    greeting: "Hi! I'm EmoBuddy. How are you feeling right now?",
+    inputPlaceholder: "Tell me how you're feeling…",
+    send: "Send",
+    getPlan: "Get my plan",
+    thinking: "EmoBuddy is thinking…",
+    planTitle: "Your 3-day self-care plan",
+    dayLabel: "Day",
+    signOut: "Sign Out",
+    newChat: "New chat",
+    notSaved: "Saved to this page only — we couldn't store this message.",
+    errorReply: "I couldn't reach EmoBuddy just now. Please try again.",
+    errorPlan: "I couldn't put your plan together just now. Please try again.",
+    crisisNotice:
+      "It sounds like you're going through something serious. Please reach out to one of these services.",
+  },
   footer: {
     tagline: "A calmer space for your emotions.",
     product: "Product",
