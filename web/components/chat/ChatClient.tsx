@@ -1,15 +1,14 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { CircleCheck, Send, ShieldAlert, Sparkles } from "lucide-react";
 import type { Dictionary, Locale } from "@/lib/dictionaries";
-import type { AnalyzeResponse } from "@/lib/chat/types";
-import { LangToggle } from "@/components/shared/LangToggle";
+import type { AnalyzeResponse, ChatMessageRow } from "@/lib/chat/types";
 
 type Bubble =
   | { kind: "text"; from: "user" | "ai"; text: string }
-  | { kind: "plan"; result: AnalyzeResponse };
+  | { kind: "plan"; result: AnalyzeResponse; notifiedContact?: string | null }
+  | { kind: "notified"; name: string };
 
 // Same three tints PhoneMockup/LiveDemo cycle through for each self-care
 // day, so a plan looks like the same product whether it was generated on
@@ -21,20 +20,78 @@ const aiBubbleClass =
 const userBubbleClass =
   "max-w-[85%] self-end rounded-2xl rounded-br-md bg-indigo-tint px-4 py-2.5 text-[15px] leading-relaxed text-ink";
 
+/**
+ * Reconstructs the bubble sequence a live session would have produced, from
+ * the rows saveAnalysis()/addMessage() actually wrote (see lib/chat/sessions.ts).
+ * A non-crisis result arrives as two rows — 'mood' (the response text) then
+ * 'plan' (the card) — so 'mood' contributes only its text; a crisis result is
+ * one row carrying both, so it contributes text *and* the card, matching what
+ * ChatClient.getPlan() pushes live.
+ */
+function messagesToBubbles(messages: ChatMessageRow[]): Bubble[] {
+  const bubbles: Bubble[] = [];
+  for (const m of messages) {
+    if (m.role === "user") {
+      bubbles.push({ kind: "text", from: "user", text: m.content ?? "" });
+      continue;
+    }
+    const result = (m.metadata as { result?: AnalyzeResponse } | null)?.result;
+    if (m.type === "plan" && result) {
+      bubbles.push({ kind: "plan", result });
+    } else if (m.type === "crisis" && result) {
+      bubbles.push({ kind: "text", from: "ai", text: m.content ?? result.response_message });
+      bubbles.push({ kind: "plan", result });
+    } else {
+      bubbles.push({ kind: "text", from: "ai", text: m.content ?? "" });
+    }
+  }
+  return bubbles;
+}
+
 export function ChatClient({
   lang,
   dict,
+  initialSessionId,
 }: {
   lang: Locale;
   dict: Dictionary["chat"];
+  initialSessionId?: string;
 }) {
-  const [bubbles, setBubbles] = useState<Bubble[]>([
-    { kind: "text", from: "ai", text: dict.greeting },
-  ]);
+  const [bubbles, setBubbles] = useState<Bubble[]>(
+    initialSessionId ? [] : [{ kind: "text", from: "ai", text: dict.greeting }],
+  );
   const [input, setInput] = useState("");
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(initialSessionId ?? null);
   const [busy, setBusy] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(Boolean(initialSessionId));
   const [notice, setNotice] = useState<string | null>(null);
+
+  // Resuming a session from History: load its stored messages once on mount.
+  useEffect(() => {
+    if (!initialSessionId) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const response = await fetch(`/api/chat/sessions?id=${initialSessionId}`);
+        if (!response.ok) throw new Error(String(response.status));
+        const data: { messages: ChatMessageRow[] } = await response.json();
+        if (!cancelled) setBubbles(messagesToBubbles(data.messages));
+      } catch {
+        if (!cancelled) {
+          setBubbles([{ kind: "text", from: "ai", text: dict.errorReply }]);
+        }
+      } finally {
+        if (!cancelled) setLoadingHistory(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // Only ever runs for the session this page mounted with.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialSessionId]);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -62,6 +119,9 @@ export function ChatClient({
       const data = await response.json();
       setSessionId(data.sessionId);
       setBubbles((b) => [...b, { kind: "text", from: "ai", text: data.reply }]);
+      if (data.crisis && data.notifiedContact) {
+        setBubbles((b) => [...b, { kind: "notified", name: data.notifiedContact }]);
+      }
       if (data.persisted === false) setNotice(dict.notSaved);
     } catch {
       setBubbles((b) => [...b, { kind: "text", from: "ai", text: dict.errorReply }]);
@@ -83,11 +143,12 @@ export function ChatClient({
       });
       if (!response.ok) throw new Error(String(response.status));
 
-      const result: AnalyzeResponse & { persisted: boolean } = await response.json();
+      const result: AnalyzeResponse & { persisted: boolean; notifiedContact?: string | null } =
+        await response.json();
       setBubbles((b) => [
         ...b,
         { kind: "text", from: "ai", text: result.response_message },
-        { kind: "plan", result },
+        { kind: "plan", result, notifiedContact: result.notifiedContact },
       ]);
       if (result.persisted === false) setNotice(dict.notSaved);
     } catch {
@@ -98,38 +159,23 @@ export function ChatClient({
   }
 
   return (
-    <div className="flex h-svh flex-col bg-cream">
+    <div className="flex h-full flex-col">
       <h1 className="sr-only">{dict.title}</h1>
-
-      <header className="sticky top-0 z-10 flex shrink-0 items-center justify-between border-b border-outline/60 bg-cream/90 px-4 py-3 backdrop-blur-sm sm:px-6">
-        <div className="flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-white shadow-sm">
-            <Image
-              src="/logo-icon.png"
-              alt=""
-              width={32}
-              height={32}
-              className="h-7 w-7 rounded-full object-cover"
-              priority
-            />
-          </span>
-          <span className="text-sm font-bold tracking-tight text-ink">EmoBuddy</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <LangToggle lang={lang} />
-          <form action={`/auth/signout?lang=${lang}`} method="post">
-            <button
-              type="submit"
-              className="rounded-full border border-outline px-3 py-1.5 text-xs font-bold text-ink-faint transition-colors hover:border-coral hover:text-coral-deep"
-            >
-              {dict.signOut}
-            </button>
-          </form>
-        </div>
-      </header>
 
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto flex max-w-2xl flex-col gap-3 px-4 py-6 sm:px-6">
+          {loadingHistory && (
+            <div className="flex items-center gap-1 self-start rounded-2xl rounded-bl-md border border-outline/70 bg-white px-4 py-3">
+              {[0, 1, 2].map((i) => (
+                <span
+                  key={i}
+                  className="typing-dot block h-1.5 w-1.5 rounded-full bg-ink-faint"
+                  style={{ animationDelay: `${i * 160}ms` }}
+                />
+              ))}
+            </div>
+          )}
+
           {bubbles.map((bubble, i) =>
             bubble.kind === "text" ? (
               <div
@@ -140,6 +186,14 @@ export function ChatClient({
                   {bubble.from === "user" ? dict.youLabel : dict.aiLabel}:{" "}
                 </span>
                 {bubble.text}
+              </div>
+            ) : bubble.kind === "notified" ? (
+              <div
+                key={i}
+                className="flex max-w-[85%] items-center gap-1.5 self-start rounded-full bg-coral-tint px-3.5 py-2 text-xs font-bold text-coral-deep"
+              >
+                <ShieldAlert size={13} />
+                {dict.contactNotified.replace("{name}", bubble.name)}
               </div>
             ) : bubble.result.crisis ? (
               <div
@@ -171,6 +225,12 @@ export function ChatClient({
                     </a>
                   ))}
                 </div>
+                {bubble.notifiedContact && (
+                  <p className="flex items-center gap-1.5 text-xs font-bold text-coral-deep">
+                    <CircleCheck size={13} className="shrink-0" />
+                    {dict.contactNotified.replace("{name}", bubble.notifiedContact)}
+                  </p>
+                )}
               </div>
             ) : (
               <div

@@ -64,6 +64,61 @@ export type Dictionary = {
     errorReply: string;
     errorPlan: string;
     crisisNotice: string;
+    contactNotified: string;
+  };
+  appNav: {
+    chat: string;
+    history: string;
+    plan: string;
+    profile: string;
+  };
+  history: {
+    title: string;
+    groupToday: string;
+    groupYesterday: string;
+    groupThisWeek: string;
+    groupEarlier: string;
+    emptyTitle: string;
+    emptyBody: string;
+    startChat: string;
+    errorTitle: string;
+    retry: string;
+  };
+  plan: {
+    title: string;
+    activeTitle: string;
+    previousTitle: string;
+    emptyTitle: string;
+    emptyBody: string;
+    startChat: string;
+    errorTitle: string;
+    retry: string;
+  };
+  profile: {
+    title: string;
+    statStreak: string;
+    statCheckins: string;
+    statCompleted: string;
+    accountLabel: string;
+  };
+  emergencyContact: {
+    title: string;
+    subtitle: string;
+    nameLabel: string;
+    relationshipLabel: string;
+    relationshipPlaceholder: string;
+    phoneLabel: string;
+    saveButton: string;
+    editButton: string;
+    removeButton: string;
+    removeConfirm: string;
+    cancelButton: string;
+    addButton: string;
+    emptyTitle: string;
+    emptyBody: string;
+    savedNotice: string;
+    errorRequired: string;
+    errorGeneric: string;
   };
   footer: {
     tagline: string;

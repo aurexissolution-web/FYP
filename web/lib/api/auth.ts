@@ -10,5 +10,5 @@ export async function requireUser() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  return user ? { id: user.id } : null;
+  return user ? { id: user.id, email: user.email ?? null } : null;
 }
