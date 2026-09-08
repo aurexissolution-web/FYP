@@ -1,0 +1,422 @@
+import type { Dictionary } from "./types";
+
+const en: Dictionary = {
+  nav: {
+    home: "Home",
+    features: "Features",
+    howItWorks: "How It Works",
+    research: "Research",
+    about: "About",
+    help: "Get Help",
+    signIn: "Sign In",
+    signUp: "Sign Up",
+    openMenu: "Open navigation",
+  },
+  footer: {
+    tagline: "A calmer space for your emotions.",
+    product: "Product",
+    company: "Company",
+    privacy: "Privacy & Safety",
+    getHelp: "Get Help",
+    contact: "Contact",
+    disclaimer:
+      "EmoBuddy is a student research project and is not a crisis service, a medical device, or a substitute for professional care.",
+    rights: "Final Year Project · Politeknik Tuanku Sultanah Bahiyah",
+  },
+  home: {
+    badge: "A calmer space for your emotions",
+    title: "Understand how you feel, one conversation at a time.",
+    subtitle:
+      "EmoBuddy helps you check in through text or voice, reflect on your emotions, and take small, caring steps forward — in English or Bahasa Melayu.",
+    ctaPrimary: "Get Started Free",
+    ctaSecondary: "See How It Works",
+    trustLine: "Private by design · English and Bahasa Melayu · Available anytime",
+    pills: ["Voice + Text Check-Ins", "Bilingual EN/BM", "Crisis-Safe"],
+    flow: ["Speak or type", "AI understands", "Personalized care"],
+    phone: {
+      userMsg: "I've been feeling really anxious about my exams.",
+      aiMsg:
+        "That sounds like a lot to carry. Let's take it one step at a time.",
+      planTitle: "Your 3-Day Self-Care Plan",
+      planDays: [
+        "Day 1 — 5-minute breathing exercise",
+        "Day 2 — Write down one proud moment",
+        "Day 3 — Reach out to someone you trust",
+      ],
+      inputPlaceholder: "Type or hold to speak…",
+    },
+    statsEyebrow: "Built on trained models, not prompts",
+    statsHeading: "Two models, evaluated honestly",
+    stats: [
+      {
+        value: "67%",
+        label: "Text-emotion accuracy",
+        detail: "Bi-GRU on GoEmotions · macro F1 0.61",
+      },
+      {
+        value: "61.5%",
+        label: "Audio-emotion accuracy",
+        detail: "CNN on RAVDESS · 6-fold actor-disjoint CV",
+      },
+      {
+        value: "4,567",
+        label: "Held-out test samples",
+        detail: "Never seen by the model during training",
+      },
+    ],
+    proofStrip: ["Macro F1, text model", "Actor-disjoint cross-validation, audio", "Emotion classes"],
+    statsLink: "See the full evaluation",
+    stepsLink: "See every step in detail",
+    stepsOverrideChip: "Hard override",
+    demo: {
+      eyebrow: "See it in action",
+      heading: "One check-in, start to finish",
+      body: "This is what happens in the seconds after you press send — replayed automatically, in both languages.",
+      callouts: [
+        { title: "Message received", detail: "In English or Bahasa Melayu — typed here, or spoken." },
+        { title: "Crisis check passed", detail: "Keyword lists in both languages run before any model does. Nothing matched, so the check-in continues." },
+        { title: "Bi-GRU reads the words", detail: "Trained on GoEmotions · 67% accuracy on 4,567 held-out samples." },
+        { title: "Emotion decided", detail: "With a voice note, text and tone are fused by per-emotion F1 weighting — here, text alone decides." },
+        { title: "A specific reply, plus a 3-day plan", detail: "Tailored to the emotion detected and the language you used." },
+      ],
+      replayNote: "Auto-playing demo · alternates English and Bahasa Melayu · nothing is sent anywhere",
+    },
+    hood: {
+      eyebrow: "Under the hood",
+      heading: "Two models, one honest decision",
+      body: "Text and voice are judged by separate models, then combined — not averaged. Each model's vote is weighted by how reliable it has proven to be for that specific emotion.",
+      nodes: {
+        text: "Text",
+        voice: "Voice",
+        crisis: "Crisis check",
+        crisisSub: "EN + BM keyword lists",
+        hotlines: "match → hotlines",
+        textModel: "Bi-GRU",
+        audioModel: "CNN",
+        fusion: "F1-weighted fusion",
+        fusionSub: "per-emotion weights",
+        emotion: "Emotion",
+        output: "Reply + plan",
+      },
+      weightsHeading: "Who gets the final say, per emotion",
+      textLabel: "text",
+      audioLabel: "voice",
+      classes: ["Happy", "Sad", "Angry", "Neutral"],
+      link: "Read the full research",
+    },
+    problemEyebrow: "Why this exists",
+    problemHeading: "Reaching out is hard. It shouldn't have to be.",
+    problemBody:
+      "Stigma, language, and cost keep a lot of people from checking in on their own mental health until things are already difficult. EmoBuddy is a low-pressure first step — available in the language you actually think in, without needing to explain yourself to anyone first.",
+    problemBig: {
+      label: "Malaysians aged 16 and above living with depression — 4.6% of all adults.",
+      source: "Source: National Health & Morbidity Survey 2023 and 2022 (Adolescent Health Survey), Ministry of Health Malaysia",
+    },
+    problemStats: [
+      {
+        value: "2×",
+        label: "the rate recorded just four years earlier",
+        detail: "NHMS 2019 → 2023",
+      },
+      {
+        value: "1 in 4",
+        label: "adolescents aged 13–17 report symptoms of depression",
+        detail: "NHMS 2022",
+      },
+    ],
+    problemBarriersHeading: "The need is visible. The first step still isn't.",
+    problemBarriers: [
+      {
+        title: "Stigma creates silence",
+        body: "Asking for help can feel like admitting something is wrong — especially when someone is not ready to speak to another person.",
+      },
+      {
+        title: "Language creates distance",
+        body: "Emotions are difficult to translate. Support feels less personal when it is not available in the language someone thinks and feels in.",
+      },
+      {
+        title: "Cost creates delay",
+        body: "Professional care matters, but access can take time or feel out of reach. Many people need a safe first step before that point.",
+      },
+    ],
+    problemBridge: {
+      eyebrow: "The gap EmoBuddy addresses",
+      heading: "Not a replacement for care. A bridge toward it.",
+      body: "A private, bilingual check-in gives people space to name what they feel, understand it, and take one manageable next step.",
+    },
+    featuresEyebrow: "What it does",
+    featuresHeading: "Support that starts",
+    featuresHeadingAccent: "by listening.",
+    featuresBody:
+      "Five things EmoBuddy does today — none of them a roadmap item.",
+    featuresLink: "See all features",
+    features: [
+      {
+        title: "Bilingual conversation",
+        body: "English and Bahasa Melayu are both first-class — not a translated interface.",
+      },
+      {
+        title: "Voice or text check-ins",
+        body: "One model reads the words you use, another reads the tone of your voice.",
+      },
+      {
+        title: "A 3-day self-care plan",
+        body: "Three small, doable steps after every check-in, tailored to how you feel.",
+      },
+      {
+        title: "Your history, private to you",
+        body: "Look back on patterns over time. Row-level security means only you can read it.",
+      },
+      {
+        title: "Crisis-safe by default",
+        body: "Signs of crisis go straight to verified Malaysian hotlines — before anything else.",
+      },
+    ],
+    bento: {
+      sampleEn: "I feel overwhelmed today.",
+      sampleMs: "Saya rasa tertekan hari ini.",
+      onlyYou: "Only you can read this",
+      historyRows: ["Today · Neutral", "Yesterday · Sad · plan 2 of 3 done", "Last week · Happy"],
+    },
+    safetyEyebrow: "Safety first",
+    safetyHeading: "If it's urgent, EmoBuddy gets out of the way",
+    safetyBody:
+      "EmoBuddy is not a crisis service. If it detects language suggesting you're in crisis, it skips straight to verified Malaysian hotlines — before anything else.",
+    safetyDoesHeading: "When it triggers, EmoBuddy",
+    safetyDoesNotHeading: "What it does not do",
+    hotlineCall: "Call",
+    safetyLink: "See how crisis detection works",
+    aboutEyebrow: "Built at Politeknik Tuanku Sultanah Bahiyah",
+    aboutHeading: "A Final Year Project, built end to end",
+    aboutLink: "About the project",
+    aboutBuildEyebrow: "National innovation entry",
+    aboutBuildBadge: "End-to-end build",
+    aboutBuild: ["Mobile app", "Two AI models", "Secure backend", "Competition website"],
+    sdgLabel: "SDG",
+    faq: {
+      eyebrow: "Questions",
+      heading: "Things people ask at the booth",
+      body: "Straight answers about safety, privacy, language support, and what the models actually do — ready for the questions that matter most.",
+      facts: [
+        { value: "6", label: "common booth questions" },
+        { value: "EN + BM", label: "first-class languages" },
+        { value: "4", label: "emotion classes" },
+      ],
+      items: [
+        {
+          q: "Is EmoBuddy a replacement for therapy or a crisis line?",
+          a: "No. It's a low-pressure first step for checking in on yourself. It does not contact emergency services, it is not monitored by a human in real time, and it cannot replace speaking with the people on the hotlines. If it detects a crisis, it shows those hotlines immediately.",
+        },
+        {
+          q: "Is my voice recording stored?",
+          a: "No. Your voice is processed to detect emotion and then discarded — only its duration and the emotion detected from it are kept.",
+        },
+        {
+          q: "Which languages does it support?",
+          a: "English and Bahasa Melayu, both first-class — separate crisis keyword lists, separate response templates, and a Malay lexicon boost for the text model. Not a machine-translated interface bolted onto an English product.",
+        },
+        {
+          q: "Which emotions can it detect?",
+          a: "Every check-in is classified into one of four emotions — happy, sad, angry, or neutral. Four coarse classes were chosen because choosing a self-care response doesn't need more resolution than that, and every added class shrinks the training data available per class.",
+        },
+        {
+          q: "What happens if I mention self-harm?",
+          a: "Before any emotion model runs, your words are checked against a crisis keyword list in both languages. If it matches, EmoBuddy shows verified Malaysian hotlines instead of a self-care plan. This is a hard override, not a suggestion the model can talk itself out of.",
+        },
+        {
+          q: "Who can see my check-ins?",
+          a: "Only you. Row-level security in the database means only your account can ever read your own data — not even an admin panel exists that could.",
+        },
+      ],
+    },
+    finalCtaHeading: "Ready to check in with yourself?",
+    finalCtaBody:
+      "It takes less than a minute, and there's nothing to prepare. Just say how you're doing.",
+    finalCtaButton: "Create Your Account",
+  },
+  features: {
+    eyebrow: "Features",
+    heading: "Not another wellness chatbot",
+    subheading:
+      "Every feature below is something EmoBuddy actually does today, not a roadmap item.",
+    items: [
+      {
+        title: "Bilingual conversation",
+        body: "English and Bahasa Melayu are both first-class — separate crisis keyword lists, separate response templates, and a Malay lexicon boost for the text model. Not a machine-translated interface bolted onto an English product.",
+      },
+      {
+        title: "Voice and text check-ins",
+        body: "Speak naturally or type — a Bi-GRU model reads the words you use, a CNN reads the tone, pitch, and pacing of your voice. Either one works alone; together they're more reliable than either by itself.",
+      },
+      {
+        title: "Weighted fusion, not a coin flip",
+        body: "When voice and text disagree, EmoBuddy doesn't average them or pick one arbitrarily. Each model's vote is weighted per emotion by its own measured reliability on that emotion — see the Research page for exactly how.",
+      },
+      {
+        title: "A 3-day self-care plan",
+        body: "Every non-crisis check-in ends with three concrete, achievable steps for the next three days — not generic advice, tailored to the emotion detected and the language you're using.",
+      },
+      {
+        title: "Crisis-safe by default",
+        body: "Keyword detection runs in both English and Bahasa Melayu before anything else. If it triggers, EmoBuddy shows verified hotlines immediately and skips the self-care flow entirely — no delay, no ambiguity.",
+      },
+      {
+        title: "Your history, private to you",
+        body: "Every check-in is saved so you can look back on patterns over time. Row-level security means only you can ever read your own data — not even an admin panel exists that could.",
+      },
+      {
+        title: "Nothing recorded, only understood",
+        body: "Your voice is processed to detect emotion and then discarded — EmoBuddy stores the result of listening, never the recording itself.",
+      },
+    ],
+  },
+  howItWorks: {
+    eyebrow: "How it works",
+    heading: "From a single message to a real response",
+    subheading:
+      "Five steps, and one safety branch that can interrupt everything else at any point.",
+    steps: [
+      {
+        title: "Sign in",
+        body: "One account works across the web and the iOS app, backed by the same secure database.",
+      },
+      {
+        title: "Say or type how you feel",
+        body: "In English or Bahasa Melayu — whichever you're more comfortable in right now.",
+      },
+      {
+        title: "Crisis check, first",
+        body: "Before any emotion model runs, your words are checked against a crisis keyword list in both languages. If it matches, everything below is skipped.",
+      },
+      {
+        title: "Two models run in parallel",
+        body: "Text goes through a Bi-GRU trained on GoEmotions. Voice goes through a CNN trained on RAVDESS, reading MFCC and delta features. Both output a confidence per emotion.",
+      },
+      {
+        title: "Fusion, reply, and a plan",
+        body: "The two results are combined by per-class F1 weighting, and EmoBuddy replies with something specific to what it detected — plus a 3-day self-care plan.",
+      },
+    ],
+    crisisNote:
+      "If step 3 triggers, EmoBuddy shows verified Malaysian hotlines instead of a self-care plan. This is a hard override, not a suggestion the model can talk itself out of.",
+    techNote:
+      "Curious about the actual architecture and numbers behind steps 4 and 5? That's the whole Research page.",
+  },
+  research: {
+    eyebrow: "Research & Methodology",
+    heading: "The numbers behind the reply",
+    subheading:
+      "Real evaluation results from held-out data, reported honestly — including where the models are weakest.",
+    taskHeading: "The task",
+    taskBody:
+      "EmoBuddy classifies every check-in into one of four emotions — happy, sad, angry, or neutral. Four coarse classes were chosen over a finer-grained taxonomy because the downstream use (choosing a self-care response) doesn't need more resolution than that, and every added class shrinks the training data available per class.",
+    textHeading: "Text model — Bi-GRU on GoEmotions",
+    textBody:
+      "Trained on GoEmotions, mapped down to the four target classes. Evaluated on a held-out test set of 4,567 samples never seen during training.",
+    audioHeading: "Audio model — CNN on RAVDESS",
+    audioBody:
+      "Trained on RAVDESS acted-speech recordings, using MFCC coefficients plus delta and delta-delta features as input channels.",
+    audioValidationNote:
+      "Validated with 6-fold cross-validation split by actor — no speaker appears in both the training and validation fold of any run. This matters: without actor-disjoint splitting, a model can look accurate simply by recognizing a specific voice rather than the emotion in it.",
+    fusionHeading: "Fusion — weighted by measured reliability, not guessed",
+    fusionBody:
+      "When text and audio disagree, EmoBuddy doesn't average their confidence or default to one modality. Each model's vote for a given emotion is weighted by that model's own F1 score for that specific emotion, measured on held-out data.",
+    fusionFormula:
+      "weight(text, emotion) = F1_text(emotion) / (F1_text(emotion) + F1_audio(emotion))",
+    fusionInsightHeading: "What the weights actually say",
+    fusionInsightBody:
+      "Text dominates the fusion for happy and sad — the words people choose carry those emotions clearly. Audio dominates for angry and neutral — tone and pacing carry those better than word choice alone. This isn't an assumption; it falls directly out of measuring each model separately.",
+    limitationsHeading: "Limitations, stated plainly",
+    limitations: [
+      "Both models were trained on English-language data (GoEmotions, RAVDESS), while the product is bilingual — Malay emotional expression is handled by rule-based lexicon boosting and crisis keywords, not a Malay-trained model.",
+      "RAVDESS is acted North American speech, not natural or Malaysian speech — real-world accuracy on Malaysian voices is untested.",
+      "Four emotion classes is a coarse simplification of real emotional experience.",
+      "The audio model's deployed checkpoint was selected on validation accuracy (56.3%), which is optimistic; the 61.5% cross-validation figure is the honest generalization estimate and the one to cite.",
+      "Crisis detection is keyword-based, not a trained classifier — deliberately tuned toward high precision on serious phrases over broad recall, and disclosed as a safeguard rather than a clinical tool.",
+    ],
+    reproHeading: "Reproducibility",
+    reproBody:
+      "Training and preprocessing notebooks, the raw metrics JSON, and the confusion matrices for both models are in the project's GitHub repository.",
+    tableClass: "Class",
+    tablePrecision: "Precision",
+    tableRecall: "Recall",
+    tableF1: "F1",
+    tableSupport: "Support",
+  },
+  about: {
+    eyebrow: "About",
+    heading: "A Final Year Project, built to actually work",
+    story:
+      "EmoBuddy started as a question: what would it take to build a mental health check-in tool that treats Bahasa Melayu as a first-class language instead of an afterthought, and that's honest about what its models can and can't do? It's a Diploma in Electrical Engineering Final Year Project, built end-to-end — the app, the two trained models, the backend, and this website — as an entry in NICERS'26, a national innovation competition.",
+    institutionHeading: "Institution",
+    institutionBody:
+      "Politeknik Tuanku Sultanah Bahiyah, Jabatan Kejuruteraan Elektrik (Department of Electrical Engineering), Session 2, 2025/2026.",
+    sdgHeading: "Aligned with the UN Sustainable Development Goals",
+    sdgBody:
+      "EmoBuddy's design choices are deliberately tied to two SDGs, not as a slogan but as constraints that shaped what got built.",
+    sdg3: "Good Health & Well-Being — accessible, judgment-free mental health check-ins, with a hard crisis-safety override.",
+    sdg10: "Reduced Inequalities — genuine Bahasa Melayu support, not a translated English product, so language isn't a barrier to using it.",
+  },
+  privacy: {
+    eyebrow: "Privacy & Safety",
+    heading: "What EmoBuddy stores, and what it doesn't",
+    subheading:
+      "Written in plain language, not because a lawyer required it, but because you deserve to know before you type anything.",
+    storedHeading: "What is stored",
+    stored: [
+      "Your email address, for signing in.",
+      "The text of your check-ins and chat messages.",
+      "The detected emotion and confidence score for each check-in.",
+      "Your 3-day self-care plans and whether you've marked them complete.",
+    ],
+    notStoredHeading: "What is not stored",
+    notStored: [
+      "Your voice recording itself — only its duration and the emotion detected from it are kept.",
+      "Any data from other users, ever visible to you — or yours to anyone else.",
+    ],
+    accessHeading: "Who can read it",
+    accessBody:
+      "Only you. Every table is protected by Postgres row-level security tied to your account — there is no admin dashboard that can see across users, because none was built.",
+    thirdPartyHeading: "Third parties",
+    thirdPartyBody:
+      "Conversational replies are generated by Groq's API — your message text is sent there to generate a reply. The two emotion-classification models run on our own server; your check-in is never sent to a third party to be classified.",
+    deletionHeading: "Deleting your data",
+    deletionBody:
+      "Deleting a conversation removes it and every message and plan attached to it, immediately and permanently.",
+    disclaimerHeading: "What EmoBuddy is not",
+    disclaimerBody:
+      "Not a medical device. Not a diagnosis. Not a crisis service. Not a substitute for a licensed professional. See the Research page for the honest limitations of the models behind it.",
+  },
+  help: {
+    eyebrow: "Get Help",
+    heading: "If you need to talk to someone right now",
+    subheading:
+      "These lines are free, confidential, and staffed 24 hours. You don't need EmoBuddy open to use them.",
+    emergencyBanner: "If you are in immediate danger, call 999.",
+    hotlinesHeading: "Verified Malaysian helplines",
+    expectHeading: "What to expect when you call",
+    expectBody:
+      "A trained, confidential listener — not a bot, not a queue that goes nowhere. You don't need to have the right words ready.",
+    emoBuddyDoesHeading: "What EmoBuddy does when it detects crisis language",
+    emoBuddyDoes: [
+      "Immediately shows the hotlines above, in the language you're using.",
+      "Skips the self-care plan for that check-in entirely — this isn't the moment for a checklist.",
+    ],
+    emoBuddyDoesNotHeading: "What EmoBuddy does not do",
+    emoBuddyDoesNot: [
+      "It does not contact emergency services on your behalf.",
+      "It is not monitored by a human in real time.",
+      "It cannot replace speaking with the people above.",
+    ],
+  },
+  contact: {
+    eyebrow: "Contact",
+    heading: "Questions, feedback, or press",
+    body: "This is a student Final Year Project — reach out directly and a real person (the one who built it) will reply.",
+    emailLabel: "Email",
+    githubLabel: "Source code",
+    institutionLabel: "Politeknik Tuanku Sultanah Bahiyah, Jabatan Kejuruteraan Elektrik",
+  },
+};
+
+export default en;

@@ -1,0 +1,42 @@
+import { createServerClient } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
+
+/**
+ * Refreshes the Supabase session and returns a response carrying any
+ * rewritten auth cookies. Call this before any redirect logic, and copy the
+ * cookies forward if you replace the response — see proxy.ts.
+ */
+export async function updateSession(request: NextRequest) {
+  let response = NextResponse.next({ request });
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet, headers) {
+          for (const { name, value } of cookiesToSet) {
+            request.cookies.set(name, value);
+          }
+          response = NextResponse.next({ request });
+          for (const { name, value, options } of cookiesToSet) {
+            response.cookies.set(name, value, options);
+          }
+          // Required: without these a CDN can cache one user's session
+          // cookie and serve it to someone else.
+          for (const [key, value] of Object.entries(headers)) {
+            response.headers.set(key, value);
+          }
+        },
+      },
+    },
+  );
+
+  // Touching getUser() is what triggers the refresh. Do not remove.
+  await supabase.auth.getUser();
+
+  return response;
+}
