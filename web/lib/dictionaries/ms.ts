@@ -43,6 +43,8 @@ const ms: Dictionary = {
   chat: {
     title: "Luahkan perasaan bersama EmoBuddy",
     greeting: "Hai! Saya EmoBuddy. Bagaimana perasaan anda sekarang?",
+    youLabel: "Anda",
+    aiLabel: "EmoBuddy",
     inputPlaceholder: "Ceritakan perasaan anda…",
     send: "Hantar",
     getPlan: "Dapatkan pelan saya",

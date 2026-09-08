@@ -43,6 +43,8 @@ const en: Dictionary = {
   chat: {
     title: "Check in with EmoBuddy",
     greeting: "Hi! I'm EmoBuddy. How are you feeling right now?",
+    youLabel: "You",
+    aiLabel: "EmoBuddy",
     inputPlaceholder: "Tell me how you're feeling…",
     send: "Send",
     getPlan: "Get my plan",

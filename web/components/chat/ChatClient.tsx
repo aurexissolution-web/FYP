@@ -87,7 +87,7 @@ export function ChatClient({
         {bubbles.map((bubble, i) =>
           bubble.kind === "text" ? (
             <li key={i} data-from={bubble.from}>
-              <strong>{bubble.from === "user" ? "You" : "EmoBuddy"}:</strong>{" "}
+              <strong>{bubble.from === "user" ? dict.youLabel : dict.aiLabel}:</strong>{" "}
               {bubble.text}
             </li>
           ) : (

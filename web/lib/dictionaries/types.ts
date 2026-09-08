@@ -50,6 +50,8 @@ export type Dictionary = {
   chat: {
     title: string;
     greeting: string;
+    youLabel: string;
+    aiLabel: string;
     inputPlaceholder: string;
     send: string;
     getPlan: string;
