@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireUser } from "@/lib/api/auth";
+import { notifyEmergencyContactIfCrisis } from "@/lib/chat/emergency";
 import { analyzeConversation, MlServiceError } from "@/lib/chat/ml";
 import { getUserMessages, saveAnalysis } from "@/lib/chat/sessions";
 import type { Language } from "@/lib/chat/types";
@@ -51,5 +52,15 @@ export async function POST(request: NextRequest) {
     persisted = false;
   }
 
-  return NextResponse.json({ ...result, persisted });
+  let notifiedContact: string | null = null;
+  if (result.crisis) {
+    try {
+      const contact = await notifyEmergencyContactIfCrisis(user.id, sessionId);
+      notifiedContact = contact?.name ?? null;
+    } catch {
+      notifiedContact = null;
+    }
+  }
+
+  return NextResponse.json({ ...result, persisted, notifiedContact });
 }

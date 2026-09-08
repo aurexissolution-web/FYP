@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireUser } from "@/lib/api/auth";
+import { notifyEmergencyContactIfCrisis } from "@/lib/chat/emergency";
 import { chatReply, MlServiceError } from "@/lib/chat/ml";
 import { addMessage, createSession, getUserMessages } from "@/lib/chat/sessions";
 import type { Language } from "@/lib/chat/types";
@@ -60,10 +61,23 @@ export async function POST(request: NextRequest) {
     persisted = false;
   }
 
+  let notifiedContact: string | null = null;
+  if (result.crisis) {
+    try {
+      const contact = await notifyEmergencyContactIfCrisis(user.id, sessionId);
+      notifiedContact = contact?.name ?? null;
+    } catch {
+      // Best-effort — a failed audit-row insert must not hide the crisis
+      // reply itself from the user.
+      notifiedContact = null;
+    }
+  }
+
   return NextResponse.json({
     sessionId,
     reply: result.reply,
     crisis: result.crisis,
     persisted,
+    notifiedContact,
   });
 }

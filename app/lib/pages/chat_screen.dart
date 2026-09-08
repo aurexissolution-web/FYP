@@ -9,6 +9,7 @@ import '../services/analyze_api.dart';
 import '../services/audio_recorder_service.dart';
 import '../services/session_service.dart';
 import '../services/notification_service.dart';
+import '../services/emergency_contact_service.dart';
 import '../theme.dart';
 import '../widgets/emoji_avatar.dart';
 import '../widgets/typing_indicator.dart';
@@ -49,6 +50,7 @@ class _ChatMessage {
   final bool isPlan;
   final bool isError;
   final bool isLoading;
+  final String? notifiedContactName;
   final DateTime timestamp;
 
   _ChatMessage._({
@@ -60,6 +62,7 @@ class _ChatMessage {
     this.isPlan = false,
     this.isError = false,
     this.isLoading = false,
+    this.notifiedContactName,
     DateTime? timestamp,
   }) : timestamp = timestamp ?? DateTime.now();
 
@@ -72,8 +75,16 @@ class _ChatMessage {
   factory _ChatMessage.aiText(String text, {DateTime? timestamp}) =>
       _ChatMessage._(text: text, timestamp: timestamp);
 
-  factory _ChatMessage.aiMood(AnalyzeResult result, {DateTime? timestamp}) =>
-      _ChatMessage._(result: result, timestamp: timestamp);
+  factory _ChatMessage.aiMood(
+    AnalyzeResult result, {
+    String? notifiedContactName,
+    DateTime? timestamp,
+  }) =>
+      _ChatMessage._(
+        result: result,
+        notifiedContactName: notifiedContactName,
+        timestamp: timestamp,
+      );
 
   factory _ChatMessage.aiPlan(AnalyzeResult result, {DateTime? timestamp}) =>
       _ChatMessage._(result: result, isPlan: true, timestamp: timestamp);
@@ -91,6 +102,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final _scroll = ScrollController();
   final _api = AnalyzeApi();
   final _sessionService = SessionService();
+  final _emergencyContactService = EmergencyContactService();
   final _recorder = AudioRecorderService();
 
   final List<_ChatMessage> _messages = [];
@@ -476,9 +488,11 @@ class _ChatScreenState extends State<ChatScreen> {
     required String source,
     String? conversationText,
   }) async {
+    int? crisisMessageIndex;
     setState(() {
       _messages.removeLast();
       _messages.add(_ChatMessage.aiMood(result));
+      if (result.crisis) crisisMessageIndex = _messages.length - 1;
       if (!result.crisis && result.selfCarePlan.isNotEmpty) {
         _messages.add(_ChatMessage.aiPlan(result));
       }
@@ -498,6 +512,26 @@ class _ChatScreenState extends State<ChatScreen> {
         language: _language,
         conversationText: conversationText,
       );
+
+      if (result.crisis && crisisMessageIndex != null) {
+        try {
+          final name = await _emergencyContactService.notifyIfCrisis(_sessionId!);
+          if (name != null && mounted) {
+            setState(() {
+              final idx = crisisMessageIndex!;
+              _messages[idx] = _ChatMessage.aiMood(
+                result,
+                notifiedContactName: name,
+                timestamp: _messages[idx].timestamp,
+              );
+            });
+          }
+        } catch (_) {
+          // Best-effort — the crisis card and hotlines are already shown
+          // regardless of whether the audit row could be logged.
+        }
+      }
+
       if (!result.crisis && result.selfCarePlan.isNotEmpty) {
         final activities = result.selfCarePlan.map((i) => i.activity).toList();
         await NotificationService.schedulePlanReminders(
@@ -1060,7 +1094,10 @@ class _ChatScreenState extends State<ChatScreen> {
       return _PlanBubble(result: message.result!);
     }
     if (message.result != null) {
-      return _MoodBubble(result: message.result!);
+      return _MoodBubble(
+        result: message.result!,
+        notifiedContactName: message.notifiedContactName,
+      );
     }
     return _AiTextBubble(
         text: message.text ?? '', timestamp: message.timestamp);
@@ -1836,8 +1873,9 @@ class _ErrorBubble extends StatelessWidget {
 
 class _MoodBubble extends StatelessWidget {
   final AnalyzeResult result;
+  final String? notifiedContactName;
 
-  const _MoodBubble({required this.result});
+  const _MoodBubble({required this.result, this.notifiedContactName});
 
   @override
   Widget build(BuildContext context) {
@@ -1849,7 +1887,12 @@ class _MoodBubble extends StatelessWidget {
         children: [
           const _AiAvatar(size: 40),
           const SizedBox(width: 8),
-          Flexible(child: _CrisisView(result: result)),
+          Flexible(
+            child: _CrisisView(
+              result: result,
+              notifiedContactName: notifiedContactName,
+            ),
+          ),
         ],
       );
     }
@@ -2092,8 +2135,9 @@ class _TimelineItem extends StatelessWidget {
 
 class _CrisisView extends StatelessWidget {
   final AnalyzeResult result;
+  final String? notifiedContactName;
 
-  const _CrisisView({required this.result});
+  const _CrisisView({required this.result, this.notifiedContactName});
 
   @override
   Widget build(BuildContext context) {
@@ -2201,6 +2245,31 @@ class _CrisisView extends StatelessWidget {
               ),
             ),
           ),
+          if (notifiedContactName != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: colorScheme.error.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle, color: colorScheme.error, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      '$notifiedContactName has been notified',
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onErrorContainer,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

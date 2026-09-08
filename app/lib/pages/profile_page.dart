@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/session_service.dart';
 import '../services/notification_service.dart';
+import '../services/emergency_contact_service.dart';
 import '../theme.dart';
 import '../widgets/biometric_guard.dart';
 
@@ -16,11 +17,13 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   final _service = SessionService();
+  final _emergencyContactService = EmergencyContactService();
   List<Map<String, dynamic>> _logs = [];
   bool _loading = true;
   bool _reminders = true;
   bool _biometric = false;
   TimeOfDay? _reminderTime;
+  Map<String, dynamic>? _contact;
 
   @override
   void initState() {
@@ -28,6 +31,12 @@ class _ProfilePageState extends State<ProfilePage> {
     _load();
     _loadReminderPrefs();
     _loadBiometricPref();
+    _loadEmergencyContact();
+  }
+
+  Future<void> _loadEmergencyContact() async {
+    final contact = await _emergencyContactService.getContact();
+    if (mounted) setState(() => _contact = contact);
   }
 
   Future<void> _loadBiometricPref() async {
@@ -108,6 +117,98 @@ class _ProfilePageState extends State<ProfilePage> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('has_seen_onboarding', false);
     await Supabase.instance.client.auth.signOut();
+  }
+
+  Future<void> _showContactForm(BuildContext context, {Map<String, dynamic>? existing}) async {
+    final nameController = TextEditingController(text: existing?['name'] as String? ?? '');
+    final relationshipController =
+        TextEditingController(text: existing?['relationship'] as String? ?? '');
+    final phoneController = TextEditingController(text: existing?['phone'] as String? ?? '');
+    final formKey = GlobalKey<FormState>();
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(existing == null ? 'Add emergency contact' : 'Edit emergency contact'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: nameController,
+                decoration: const InputDecoration(labelText: 'Name'),
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+              ),
+              TextFormField(
+                controller: relationshipController,
+                decoration: const InputDecoration(labelText: 'Relationship (optional)'),
+              ),
+              TextFormField(
+                controller: phoneController,
+                decoration: const InputDecoration(labelText: 'Phone number'),
+                keyboardType: TextInputType.phone,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Required';
+                  if (!RegExp(r'^[0-9+\-\s]{6,20}$').hasMatch(v.trim())) {
+                    return 'Enter a valid phone number';
+                  }
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (formKey.currentState?.validate() ?? false) {
+                Navigator.of(context).pop(true);
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (saved != true) return;
+    final row = await _emergencyContactService.saveContact(
+      id: existing?['id'] as String?,
+      name: nameController.text.trim(),
+      relationship: relationshipController.text.trim().isEmpty
+          ? null
+          : relationshipController.text.trim(),
+      phone: phoneController.text.trim(),
+    );
+    if (mounted) setState(() => _contact = row);
+  }
+
+  Future<void> _confirmRemoveContact(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove emergency contact?'),
+        content: const Text('This person will no longer be notified if a crisis is detected.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || _contact == null) return;
+    await _emergencyContactService.deleteContact(_contact!['id'] as String);
+    if (mounted) setState(() => _contact = null);
   }
 
   int get _totalCheckins => _logs.length;
@@ -349,6 +450,44 @@ class _ProfilePageState extends State<ProfilePage> {
                           trailing: const Icon(Icons.chevron_right),
                           onTap: () => Navigator.of(context).pushNamed('/settings'),
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    _SectionCard(
+                      title: 'Emergency contact',
+                      children: [
+                        if (_contact == null)
+                          ListTile(
+                            leading: Icon(Icons.person_add_alt, color: colorScheme.primary),
+                            title: const Text('Add emergency contact'),
+                            subtitle: const Text('Notified automatically if a crisis is detected'),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: () => _showContactForm(context),
+                          )
+                        else
+                          ListTile(
+                            leading: Icon(Icons.contact_phone, color: colorScheme.primary),
+                            title: Text(_contact!['name'] as String),
+                            subtitle: Text(
+                              [_contact!['relationship'], _contact!['phone']]
+                                  .where((s) => s != null && (s as String).isNotEmpty)
+                                  .join(' · '),
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit),
+                                  onPressed: () =>
+                                      _showContactForm(context, existing: _contact),
+                                ),
+                                IconButton(
+                                  icon: Icon(Icons.delete_outline, color: colorScheme.error),
+                                  onPressed: () => _confirmRemoveContact(context),
+                                ),
+                              ],
+                            ),
+                          ),
                       ],
                     ),
                     const SizedBox(height: 18),
