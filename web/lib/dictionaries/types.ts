@@ -19,6 +19,34 @@ export type Dictionary = {
     signUp: string;
     openMenu: string;
   };
+  auth: {
+    signInTitle: string;
+    signInSubtitle: string;
+    signUpTitle: string;
+    signUpSubtitle: string;
+    emailLabel: string;
+    passwordLabel: string;
+    newPasswordLabel: string;
+    submitSignIn: string;
+    submitSignUp: string;
+    submitReset: string;
+    submitNewPassword: string;
+    forgotPassword: string;
+    forgotTitle: string;
+    forgotSubtitle: string;
+    resetTitle: string;
+    resetSubtitle: string;
+    noAccount: string;
+    hasAccount: string;
+    checkInbox: string;
+    confirmEmail: string;
+    working: string;
+    errors: {
+      missingFields: string;
+      passwordTooShort: string;
+      generic: string;
+    };
+  };
   footer: {
     tagline: string;
     product: string;
