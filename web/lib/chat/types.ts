@@ -44,3 +44,19 @@ export type ChatMessageRow = {
   metadata: Record<string, unknown>;
   created_at: string;
 };
+
+export type SelfCarePlanRow = {
+  id: string;
+  mood_log_id: string;
+  day_index: number;
+  activity: string;
+  language: Language;
+  completed_at: string | null;
+  created_at: string;
+};
+
+/** A session plus its self-care days, joined — mirrors Flutter's
+ * SessionService.fetchMoodLogs() (mood_logs + self_care_plans join). */
+export type MoodLogWithPlans = SessionRow & {
+  self_care_plans: SelfCarePlanRow[];
+};

@@ -5,6 +5,7 @@ import type {
   Language,
   MessageRole,
   MessageType,
+  MoodLogWithPlans,
   SessionRow,
   Source,
 } from "./types";
@@ -173,4 +174,36 @@ export async function deleteSession(userId: string, sessionId: string) {
     .eq("id", sessionId)
     .eq("user_id", userId);
   if (error) throw new Error(`deleteSession failed: ${error.message}`);
+}
+
+/**
+ * A session's own mood_logs row plus every self_care_plans row for it,
+ * joined — mirrors Flutter's SessionService.fetchMoodLogs(). Used by the
+ * Plan and Profile pages; History uses the lighter listSessions() above,
+ * matching Flutter's own getSessions()/fetchMoodLogs() split.
+ */
+export async function fetchMoodLogs(userId: string): Promise<MoodLogWithPlans[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("mood_logs")
+    .select(
+      "id, title, created_at, source, fusion_result, crisis_triggered, self_care_plans(id, mood_log_id, day_index, activity, language, completed_at, created_at)",
+    )
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(`fetchMoodLogs failed: ${error.message}`);
+  return (data ?? []) as unknown as MoodLogWithPlans[];
+}
+
+/** Marks one self-care day done/undone. RLS scopes this to rows the caller
+ * owns (self_care_plans_update_own), so no explicit user_id check is needed
+ * here — an id belonging to someone else simply updates zero rows. */
+export async function toggleSelfCare(planId: string, completed: boolean) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("self_care_plans")
+    .update({ completed_at: completed ? new Date().toISOString() : null })
+    .eq("id", planId);
+  if (error) throw new Error(`toggleSelfCare failed: ${error.message}`);
 }
