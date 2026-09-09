@@ -4,6 +4,7 @@ import { notifyEmergencyContactIfCrisis } from "@/lib/chat/emergency";
 import { chatReply, MlServiceError } from "@/lib/chat/ml";
 import { addMessage, createSession, getUserMessages } from "@/lib/chat/sessions";
 import type { Language } from "@/lib/chat/types";
+import { getHotlines } from "@/lib/hotlines";
 
 export async function POST(request: NextRequest) {
   const user = await requireUser();
@@ -73,10 +74,15 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // /chat/reply reports only {reply, crisis} — the numbers themselves come
+  // from lib/hotlines.ts (which mirrors ml-service/app/hotlines.py). Without
+  // this the crisis reply ends "here are people you can talk to:" and then
+  // lists nobody.
   return NextResponse.json({
     sessionId,
     reply: result.reply,
     crisis: result.crisis,
+    hotlines: result.crisis ? getHotlines(language) : [],
     persisted,
     notifiedContact,
   });

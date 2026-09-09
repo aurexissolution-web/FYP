@@ -4,10 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { CircleCheck, MessageCircle, Mic, Send, ShieldAlert, ShieldCheck, Sparkles } from "lucide-react";
 import type { Dictionary, Locale } from "@/lib/dictionaries";
 import type { AnalyzeResponse, ChatMessageRow } from "@/lib/chat/types";
+import { getHotlines, type HotlineEntry } from "@/lib/hotlines";
 
 type Bubble =
   | { kind: "text"; from: "user" | "ai"; text: string }
   | { kind: "plan"; result: AnalyzeResponse; notifiedContact?: string | null }
+  | { kind: "crisis"; hotlines: HotlineEntry[]; notifiedContact?: string | null }
   | { kind: "notified"; name: string };
 
 // Same three tints PhoneMockup/LiveDemo cycle through for each self-care
@@ -28,7 +30,7 @@ const userBubbleClass =
  * one row carrying both, so it contributes text *and* the card, matching what
  * ChatClient.getPlan() pushes live.
  */
-function messagesToBubbles(messages: ChatMessageRow[]): Bubble[] {
+function messagesToBubbles(messages: ChatMessageRow[], lang: Locale): Bubble[] {
   const bubbles: Bubble[] = [];
   for (const m of messages) {
     if (m.role === "user") {
@@ -41,6 +43,11 @@ function messagesToBubbles(messages: ChatMessageRow[]): Bubble[] {
     } else if (m.type === "crisis" && result) {
       bubbles.push({ kind: "text", from: "ai", text: m.content ?? result.response_message });
       bubbles.push({ kind: "plan", result });
+    } else if (m.type === "crisis") {
+      // A crisis from /chat/reply is stored with no analyze result, so the
+      // hotlines have to be re-attached when the session is reloaded.
+      bubbles.push({ kind: "text", from: "ai", text: m.content ?? "" });
+      bubbles.push({ kind: "crisis", hotlines: getHotlines(lang) });
     } else {
       bubbles.push({ kind: "text", from: "ai", text: m.content ?? "" });
     }
@@ -76,7 +83,7 @@ export function ChatClient({
         const response = await fetch(`/api/chat/sessions?id=${initialSessionId}`);
         if (!response.ok) throw new Error(String(response.status));
         const data: { messages: ChatMessageRow[] } = await response.json();
-        if (!cancelled) setBubbles(messagesToBubbles(data.messages));
+        if (!cancelled) setBubbles(messagesToBubbles(data.messages, lang));
       } catch {
         if (!cancelled) {
           setBubbles([{ kind: "text", from: "ai", text: dict.errorReply }]);
@@ -119,7 +126,16 @@ export function ChatClient({
       const data = await response.json();
       setSessionId(data.sessionId);
       setBubbles((b) => [...b, { kind: "text", from: "ai", text: data.reply }]);
-      if (data.crisis && data.notifiedContact) {
+      if (data.crisis) {
+        setBubbles((b) => [
+          ...b,
+          {
+            kind: "crisis",
+            hotlines: (data.hotlines?.length ? data.hotlines : getHotlines(lang)) as HotlineEntry[],
+            notifiedContact: data.notifiedContact ?? null,
+          },
+        ]);
+      } else if (data.notifiedContact) {
         setBubbles((b) => [...b, { kind: "notified", name: data.notifiedContact }]);
       }
       if (data.persisted === false) setNotice(dict.notSaved);
@@ -274,6 +290,43 @@ export function ChatClient({
               >
                 <ShieldAlert size={13} />
                 {dict.contactNotified.replace("{name}", bubble.name)}
+              </div>
+            ) : bubble.kind === "crisis" ? (
+              <div
+                key={i}
+                className="flex max-w-[85%] flex-col gap-3 self-start rounded-2xl bg-coral-tint px-4 py-3.5"
+              >
+                <div className="flex items-start gap-2">
+                  <ShieldAlert size={16} className="mt-0.5 shrink-0 text-coral-deep" />
+                  <p className="text-sm font-semibold leading-snug text-coral-deep">
+                    {dict.crisisNotice}
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {bubble.hotlines.map((h) => (
+                    <a
+                      key={h.phone}
+                      href={h.telHref}
+                      className="flex items-center justify-between gap-3 rounded-xl bg-white/70 px-3.5 py-2.5 transition-colors hover:bg-white"
+                    >
+                      <span className="flex flex-col">
+                        <span className="text-xs font-extrabold uppercase tracking-wide text-coral-deep">
+                          {h.name}
+                        </span>
+                        <span className="text-[13px] text-ink-soft">{h.description}</span>
+                      </span>
+                      <span className="shrink-0 text-sm font-extrabold tabular-nums text-ink">
+                        {h.phone}
+                      </span>
+                    </a>
+                  ))}
+                </div>
+                {bubble.notifiedContact && (
+                  <p className="flex items-center gap-1.5 text-xs font-bold text-coral-deep">
+                    <CircleCheck size={13} className="shrink-0" />
+                    {dict.contactNotified.replace("{name}", bubble.notifiedContact)}
+                  </p>
+                )}
               </div>
             ) : bubble.result.crisis ? (
               <div
